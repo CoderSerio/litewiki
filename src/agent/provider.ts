@@ -1,6 +1,8 @@
-import { z } from "zod";
-import fs from "node:fs/promises";
-import path from "node:path";
+import {
+  listDirectoryTool,
+  readFileTool,
+  type ToolResult,
+} from "./tools/index.js";
 
 // TODO: Shit，I forget that it's a command line tool, so it'd reconsider a better way to manage env variables
 const API_KEY = process.env.SILICONFLOW_API_KEY;
@@ -11,44 +13,6 @@ const MODEL = "Pro/zai-org/GLM-4.7"; // 文档示例模型
 if (!API_KEY) {
   throw new Error("SILICONFLOW_API_KEY is not set ❌");
 }
-
-//  JSON Schema，But notice that SiliconFlow needs JSON Schema instead of zod object
-const listDirectorySchema = {
-  type: "object",
-  properties: {
-    relativeOriginalPath: {
-      type: "string",
-      description: "相对于起始目录的路径，空字符串表示根目录",
-    },
-  },
-  required: ["relativeOriginalPath"],
-  additionalProperties: false,
-} as const;
-
-const readFileSchema = {
-  type: "object",
-  properties: {
-    relativeFilePath: {
-      type: "string",
-      description: "相对于起始目录的文件路径，例如 README.md",
-    },
-  },
-  required: ["relativeFilePath"],
-  additionalProperties: false,
-} as const;
-
-// Still use zod for runtime validation (more friendly)
-const listDirectoryParams = z.object({
-  relativeOriginalPath: z.string(),
-});
-
-const readFileParams = z.object({
-  relativeFilePath: z.string(),
-});
-
-type ToolResult =
-  | { tool: "listDirectory"; data: { name: string; type: string }[] }
-  | { tool: "readFile"; data: string };
 
 type ParsedToolCall = {
   id?: string;
@@ -90,26 +54,7 @@ async function callChat(messages: any[]) {
     max_tokens: 4096,
     tool_choice: "auto",
     response_format: { type: "text" },
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: "listDirectory",
-          description: "列出指定目录下的文件和文件夹",
-          parameters: listDirectorySchema,
-          strict: false,
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "readFile",
-          description: "读取指定文件的内容（最多返回 5000 字符）",
-          parameters: readFileSchema,
-          strict: false,
-        },
-      },
-    ],
+    tools: [listDirectoryTool.meta, readFileTool.meta],
   };
 
   // console.log("[agent] request body =>", JSON.stringify(body, null, 2));
@@ -197,74 +142,24 @@ export async function runDeepWikiAgent(cwd: string) {
       }
 
       if (name === "listDirectory") {
-        const parsed = listDirectoryParams.safeParse(args);
-        if (!parsed.success) {
-          toolResults.push({
-            tool: "listDirectory",
-            data: `invalid args`,
-          } as any);
-          continue;
-        }
-        const targetPath = path.resolve(cwd, parsed.data.relativeOriginalPath);
-        if (!targetPath.startsWith(cwd)) {
-          toolResults.push({
-            tool: "listDirectory",
-            data: `非法路径访问`,
-          } as any);
-          continue;
-        }
-        const items = await fs.readdir(targetPath, { withFileTypes: true });
-        const data = items.map((item) => ({
-          name: item.name,
-          type: item.isDirectory() ? "directory" : "file",
-        }));
-        toolResults.push({ tool: "listDirectory", data });
-        messages.push({
-          role: "tool",
-          tool_call_id: (call as any).id ?? "",
-          name,
-          content: JSON.stringify(data),
+        await listDirectoryTool.handler({
+          toolResults,
+          args,
+          messages,
+          cwd,
+          call,
         });
         continue;
       }
 
       if (name === "readFile") {
-        const parsed = readFileParams.safeParse(args);
-        if (!parsed.success) {
-          toolResults.push({ tool: "readFile", data: `invalid args` } as any);
-          continue;
-        }
-        const targetPath = path.resolve(cwd, parsed.data.relativeFilePath);
-        if (!targetPath.startsWith(cwd)) {
-          toolResults.push({ tool: "readFile", data: `非法路径访问` } as any);
-          continue;
-        }
-        try {
-          const content = await fs.readFile(targetPath, "utf-8");
-          const clipped =
-            content.length > 5000
-              ? content.slice(0, 5000) + "\n...(内容已截断)"
-              : content;
-          toolResults.push({ tool: "readFile", data: clipped });
-          messages.push({
-            role: "tool",
-            tool_call_id: (call as any).id ?? "",
-            name,
-            content: clipped,
-          });
-        } catch (err: any) {
-          const msgText =
-            err && err.code === "ENOENT"
-              ? `文件不存在: ${parsed.data.relativeFilePath}`
-              : `读取失败: ${String(err)}`;
-          toolResults.push({ tool: "readFile", data: msgText });
-          messages.push({
-            role: "tool",
-            tool_call_id: (call as any).id ?? "",
-            name,
-            content: msgText,
-          });
-        }
+        await readFileTool.handler({
+          toolResults,
+          args,
+          messages,
+          cwd,
+          call,
+        });
         continue;
       }
     }
