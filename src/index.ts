@@ -2,6 +2,9 @@
 import { cac } from "cac";
 import * as p from "@clack/prompts";
 import { execa } from "execa";
+import { checkIsRepo } from "./utils/git.js";
+import { runDeepWikiAgent } from "./agent/provider.js";
+import "dotenv/config";
 
 const cli = cac("litewiki");
 
@@ -23,5 +26,30 @@ cli.command("init", "Initialize DeepWiki in current repo").action(async () => {
   p.outro("Done!");
 });
 
+cli
+  .command("show", "🌟 analyze the current git repository")
+  .action(async () => {
+    // TODO: 其实直接用 git 命令判断一下就行
+    const isRepo = await checkIsRepo({ cwd: process.cwd() });
+    if (!isRepo) {
+      p.outro("Not a git repository");
+      return;
+    }
+
+    const { stdout } = await execa("git", ["log", "-1", "--pretty=%B"]);
+    p.outro(`Latest commit message: ${stdout}`);
+
+    const result = await runDeepWikiAgent(process.cwd());
+    p.outro(result);
+  });
+
+// cli.command("version", "Show the version of LiteWiki").action(async () => {
+//   p.outro(`LiteWiki v${packageJson.version}`);
+// });
+
 cli.help();
+
 cli.parse();
+// if (parsed.args.length === 0) {
+//   cli.help();
+// }
