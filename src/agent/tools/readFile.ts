@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { ToolResult } from "./types.js";
+import type { ToolResult } from "../types.js";
+import { IsPathSafe } from "../../utils/agent.js";
 
 const readFileSchema = {
   type: "object",
@@ -38,7 +39,7 @@ const handler = async (props: {
   }
 
   const targetPath = path.resolve(cwd, parsed.data.relativeFilePath);
-  if (!targetPath.startsWith(cwd)) {
+  if (!IsPathSafe({ safeRange: cwd, targetPath })) {
     toolResults.push({ tool: "readFile", data: `非法路径访问` } as any);
     return;
   }

@@ -1,8 +1,5 @@
-import {
-  listDirectoryTool,
-  readFileTool,
-  type ToolResult,
-} from "./tools/index.js";
+import { listDirectoryTool, readFileTool } from "./tools/index.js";
+import type { ToolResult } from "./types.js";
 
 // TODO: Shit，I forget that it's a command line tool, so it'd reconsider a better way to manage env variables
 const API_KEY = process.env.SILICONFLOW_API_KEY;

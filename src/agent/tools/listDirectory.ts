@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { ToolResult } from "./types.js";
+import type { ToolResult } from "../types.js";
 
 const listDirectorySchema = {
   type: "object",
@@ -89,4 +89,3 @@ export const listDirectoryTool = {
   },
   handler,
 };
-
