@@ -1,0 +1,14 @@
+/node_modules
+/dist
+/build
+/coverage
+/logs
+/tmp
+/temp
+/cache
+/env
+/config
+/data
+/docs
+/examples
+/tests

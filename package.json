@@ -1,0 +1,31 @@
+{
+  "name": "litewiki",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "wiki": "dist/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsup --watch",
+    "build": "tsup"
+  },
+  "keywords": [],
+  "author": "Carbon<carbon1024@foxmail.com>",
+  "license": "ISC",
+  "packageManager": "pnpm@10.26.0",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "cac": "^6.7.14",
+    "execa": "^9.6.1",
+    "zod": "^4.3.4"
+  }
+}
