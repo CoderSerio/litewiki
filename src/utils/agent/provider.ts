@@ -4,13 +4,11 @@ import { z } from "zod";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-// 1. 先创建一个自定义的 Provider 实例
 const siliconCloudProvider = createOpenAI({
   apiKey: process.env.SILICONFLOW_API_KEY || "",
   baseURL: "https://api.siliconflow.cn/v1",
 });
 
-// 2. 使用该实例获取指定的模型
 const model = siliconCloudProvider("deepseek-ai/DeepSeek-V3");
 
 export async function runDeepWikiAgent(cwd: string) {

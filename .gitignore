@@ -7,6 +7,9 @@
 /temp
 /cache
 /env
+.env
+.env.*
+!.env.example
 /config
 /data
 /docs
