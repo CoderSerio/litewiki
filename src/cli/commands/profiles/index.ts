@@ -9,8 +9,17 @@ import {
   writeProfileFile,
 } from "../../../prompts/profiles.js";
 import * as ui from "../../ui.js";
+import { relativePath, shortenMiddle } from "../../../utils/format.js";
 
 export type ProfilesAction = "list" | "init" | "open";
+
+function isValidProfileId(id: string) {
+  // 克制：只允许简单文件名，避免路径穿越与奇怪的 shell 行为
+  // 也避免 “undefined/null” 这种误操作污染目录
+  if (!id) return false;
+  if (id === "undefined" || id === "null") return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id);
+}
 
 export async function profilesCmd(props: {
   action?: ProfilesAction;
@@ -46,13 +55,30 @@ export async function profilesCmd(props: {
 
   if (act === "list") {
     const list = await listProfiles(conf.profilesDir);
-    ui.outro(
-      list
-        .map(
-          (p) => `${p.id}\t${p.source === "builtin" ? "builtin" : p.filePath}`
-        )
-        .join("\n")
-    );
+    const good = list.filter((p) => p.id !== "undefined" && p.id !== "null");
+    if (good.length === 0) {
+      ui.outro("没有可用的 profiles");
+      return;
+    }
+
+    const chosen = await ui.select<string>({
+      message: "选择一个 profile",
+      options: good.map((p) => ({
+        value: p.id,
+        label: p.id,
+        hint:
+          p.source === "builtin"
+            ? "builtin"
+            : shortenMiddle(
+                relativePath(conf.profilesDir, p.filePath || ""),
+                80
+              ),
+      })),
+      initialValue: conf.defaultProfileId,
+    });
+    if (!chosen) return;
+
+    ui.outro(`已选择: ${chosen}`);
     return;
   }
 
@@ -72,6 +98,13 @@ export async function profilesCmd(props: {
     const pid =
       props.id || (await ui.text("profile id", conf.defaultProfileId));
     if (!pid) return;
+    if (!isValidProfileId(pid)) {
+      ui.outro(
+        "无效的 profile id。允许：字母/数字开头，其余为字母/数字/._-，长度<=64；且不能是 undefined/null。"
+      );
+      process.exitCode = 1;
+      return;
+    }
 
     const fp = profileFilePath(conf.profilesDir, pid);
     try {
@@ -99,6 +132,11 @@ export function registerProfilesCommand(cli: any) {
   cli
     .command("profiles [action] [id]", "管理 prompt profiles（list/init/open）")
     .action(async (action?: ProfilesAction, id?: string) => {
-      await profilesCmd({ action, id, intro: true });
+      const args: { action?: ProfilesAction; id?: string; intro?: boolean } = {
+        intro: true,
+      };
+      if (!!action) args.action = action;
+      if (!!id) args.id = id;
+      await profilesCmd(args);
     });
 }

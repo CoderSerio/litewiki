@@ -9,8 +9,35 @@ import {
 import * as ui from "../../ui.js";
 import path from "node:path";
 import { serveReportOnce } from "../../../view/server.js";
+import {
+  relativePath,
+  shortHash,
+  shortenMiddle,
+} from "../../../utils/format.js";
 
 export type ReportsAction = "list" | "open" | "view" | "cat";
+
+function formatTime(iso: string) {
+  // YYYY-MM-DD HH:mm
+  const s = String(iso || "");
+  return s ? s.replace("T", " ").replace("Z", "").slice(0, 16) : "";
+}
+
+function formatProject(meta: {
+  repoRoot?: string;
+  targetPath: string;
+  repoKey: string;
+}) {
+  const project = path.basename(meta.repoRoot || meta.targetPath || "");
+  const h6 = shortHash(meta.repoKey, 6);
+  return project ? `${project}(${h6})` : `(${h6})`;
+}
+
+function formatRun(runId: string) {
+  // runId: 2026-..._3cc751 -> 3cc751
+  const tail = runId.split("_").slice(-1)[0] || runId;
+  return shortHash(tail, 6);
+}
 
 async function resolveTargetDir(raw?: string) {
   const p = raw && raw.trim().length > 0 ? raw : process.cwd();
@@ -65,27 +92,39 @@ export async function reportsCmd(props: {
     return;
   }
 
-  if (act === "list") {
-    ui.outro(
-      runs
-        .map(
-          (r) =>
-            `${r.meta.createdAt}\t${r.meta.mode}\t${r.meta.profileId}\t${r.reportPath}`
-        )
-        .join("\n")
-    );
-    return;
-  }
+  const options = runs.map((r) => {
+    const meta: { repoRoot?: string; targetPath: string; repoKey: string } = {
+      targetPath: r.meta.targetPath,
+      repoKey: r.meta.repoKey,
+    };
+    if (r.meta.repoRoot !== undefined) meta.repoRoot = r.meta.repoRoot;
+
+    const name = formatProject(meta);
+    const run = formatRun(r.meta.runId);
+    const time = formatTime(r.meta.createdAt);
+    return {
+      value: r.reportPath,
+      label: `${name}  run:${run}  ${time}`,
+      hint: shortenMiddle(relativePath(conf.archivesDir, r.reportPath), 90),
+    };
+  });
 
   const chosen = await ui.select<string>({
-    message: "选择一个 run",
-    options: runs.map((r) => ({
-      value: r.reportPath,
-      label: `${r.meta.createdAt} ${r.meta.mode} ${r.meta.profileId}`,
-      hint: r.reportPath,
-    })),
+    message:
+      act === "view"
+        ? "选择一个进行预览"
+        : act === "cat"
+        ? "选择一个输出到终端"
+        : "选择一个查看",
+    options,
   });
   if (!chosen) return;
+
+  if (act === "list") {
+    const picked = options.find((o) => o.value === chosen);
+    ui.outro(picked ? picked.label : "已选择");
+    return;
+  }
 
   if (act === "cat") {
     const txt = await fs.readFile(chosen, "utf-8");
@@ -125,12 +164,17 @@ export function registerReportsCommand(cli: any) {
         options?: { limit?: string }
       ) => {
         const limit = Number(options?.limit || "20");
-        await reportsCmd({
-          action,
-          dir,
-          limit: Number.isFinite(limit) ? limit : 20,
-          intro: true,
-        });
+        const args: {
+          action?: ReportsAction;
+          dir?: string;
+          limit?: number;
+          intro?: boolean;
+        } = { intro: true };
+        if (action !== undefined) args.action = action;
+        if (dir !== undefined) args.dir = dir;
+        args.limit = Number.isFinite(limit) ? limit : 20;
+
+        await reportsCmd(args);
       }
     );
 }

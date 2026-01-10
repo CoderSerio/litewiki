@@ -11,7 +11,10 @@ const ProfileSchema = z.object({
   outputFormat: z.literal("markdown"),
 });
 
-export type LoadedProfile = PromptProfile & { source: "builtin" | "file"; filePath?: string };
+export type LoadedProfile = PromptProfile & {
+  source: "builtin" | "file";
+  filePath?: string;
+};
 
 export async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
@@ -21,15 +24,22 @@ export function profileFilePath(profilesDir: string, id: string) {
   return path.join(profilesDir, `${id}.json`);
 }
 
-export async function loadProfileFromFile(filePath: string): Promise<LoadedProfile> {
+export async function loadProfileFromFile(
+  filePath: string
+): Promise<LoadedProfile> {
   const raw = await fs.readFile(filePath, "utf-8");
   const json = JSON.parse(raw);
   const parsed = ProfileSchema.parse(json);
-  return { ...parsed, source: "file", filePath };
+
+  return { ...parsed, source: "file", filePath } as LoadedProfile;
 }
 
-export async function listProfiles(profilesDir: string): Promise<LoadedProfile[]> {
-  const items = await fs.readdir(profilesDir, { withFileTypes: true }).catch(() => []);
+export async function listProfiles(
+  profilesDir: string
+): Promise<LoadedProfile[]> {
+  const items = await fs
+    .readdir(profilesDir, { withFileTypes: true })
+    .catch(() => []);
   const results: LoadedProfile[] = [{ ...defaultProfile, source: "builtin" }];
 
   for (const it of items) {
@@ -51,7 +61,10 @@ export async function listProfiles(profilesDir: string): Promise<LoadedProfile[]
   return results;
 }
 
-export async function getProfileById(profilesDir: string, id: string): Promise<LoadedProfile | null> {
+export async function getProfileById(
+  profilesDir: string,
+  id: string
+): Promise<LoadedProfile | null> {
   if (id === defaultProfile.id) return { ...defaultProfile, source: "builtin" };
   const fp = profileFilePath(profilesDir, id);
   try {
@@ -61,10 +74,11 @@ export async function getProfileById(profilesDir: string, id: string): Promise<L
   }
 }
 
-export async function writeProfileFile(filePath: string, profile: PromptProfile) {
+export async function writeProfileFile(
+  filePath: string,
+  profile: PromptProfile
+) {
   await ensureDir(path.dirname(filePath));
   const data = ProfileSchema.parse(profile);
   await fs.writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
-
-

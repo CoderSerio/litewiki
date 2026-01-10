@@ -14,7 +14,6 @@ import {
   getProfileById,
   listProfiles,
 } from "../../../prompts/profiles.js";
-import { normalizeMarkdown } from "../../../output/markdown.js";
 import {
   computeRepoKey,
   createRunId,
@@ -23,6 +22,7 @@ import {
   writeRun,
 } from "../../../persist/archive.js";
 import * as ui from "../../ui.js";
+import { normalizeMarkdown } from "../../../utils/agent.js";
 
 export type RunMode = "fresh" | "incremental";
 
@@ -217,10 +217,17 @@ export function registerRunCommand(cli: any) {
     .option("--profile <id>", "选择 prompt profile（跳过交互选择）")
     .action(async (dir?: string, options?: { profile?: string }) => {
       if (options?.profile !== undefined) {
-        await runCmd({ dirArg: dir, profile: options.profile, intro: true });
+        const args: { dirArg?: string; profile?: string; intro?: boolean } = {
+          intro: true,
+          profile: options.profile,
+        };
+        if (dir !== undefined) args.dirArg = dir;
+        await runCmd(args);
         return;
       }
-      await runCmd({ dirArg: dir, intro: true });
+      const args: { dirArg?: string; intro?: boolean } = { intro: true };
+      if (dir !== undefined) args.dirArg = dir;
+      await runCmd(args);
     });
 
   cli
@@ -228,9 +235,16 @@ export function registerRunCommand(cli: any) {
     .option("--profile <id>", "选择 prompt profile（跳过交互选择）")
     .action(async (dir?: string, options?: { profile?: string }) => {
       if (options?.profile !== undefined) {
-        await runCmd({ dirArg: dir, profile: options.profile, intro: true });
+        const args: { dirArg?: string; profile?: string; intro?: boolean } = {
+          intro: true,
+          profile: options.profile,
+        };
+        if (dir !== undefined) args.dirArg = dir;
+        await runCmd(args);
         return;
       }
-      await runCmd({ dirArg: dir, intro: true });
+      const args: { dirArg?: string; intro?: boolean } = { intro: true };
+      if (dir !== undefined) args.dirArg = dir;
+      await runCmd(args);
     });
 }
