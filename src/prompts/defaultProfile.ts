@@ -33,11 +33,14 @@ export const defaultProfile: PromptProfile = {
     "## DataFlow",
     "## RisksAndUnknowns",
     "## SuggestedNextSteps",
+    "",
+    "强约束：",
+    "- 必须输出以上所有标题；不得重命名；不得跳过。",
+    "- 每个小节至少包含 2 个要点（Unknown 也算，但要写清需要读哪个文件才能确定）。",
   ].join("\n"),
   extensions: [
     "风格：简洁、技术化、可复查。能用列表就用列表。",
     "对未知信息：写 Unknown，并说明需要读取哪个文件才能确认。",
+    "不要输出任何与本次分析无关的闲聊。",
   ],
 };
-
-
