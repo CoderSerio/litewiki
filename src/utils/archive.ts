@@ -156,7 +156,7 @@ export async function listRuns(archivesDir: string, repoKey?: string) {
   if (repoKey) {
     await collectRunsUnder(path.join(archivesDir, repoKey));
   } else {
-    // 全局：runs/<repoKey>/<runId>/...
+    // global：runs/<repoKey>/<runId>/...
     const repos = await fs
       .readdir(archivesDir, { withFileTypes: true })
       .catch(() => []);

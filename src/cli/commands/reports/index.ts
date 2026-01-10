@@ -5,7 +5,7 @@ import {
   computeRepoKey,
   ensureDir as ensureArchiveDir,
   listRuns,
-} from "../../../persist/archive.js";
+} from "../../../utils/archive.js";
 import * as ui from "../../ui.js";
 import path from "node:path";
 import { serveReportOnce } from "../../../view/server.js";

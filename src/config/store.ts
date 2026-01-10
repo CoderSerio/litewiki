@@ -6,12 +6,14 @@ import { z } from "zod";
 const StoreSchema = z.object({
   profilesDir: z.string(),
   archivesDir: z.string(),
+  llmProvider: z.string(),
   defaultProfileId: z.string(),
   lastProfileId: z.string().optional(),
 });
 
 export type StoreData = z.infer<typeof StoreSchema>;
 
+// XDG means X Series Desktop Group (LinuX, UniX)
 function xdgConfigHome() {
   const env = process.env.XDG_CONFIG_HOME;
   if (env && env.trim()) return env;
@@ -26,6 +28,7 @@ export function createConfigStore() {
   const defaults: StoreData = {
     profilesDir: path.join(xdgConfigHome(), "litewiki", "profiles"),
     archivesDir: path.join(xdgConfigHome(), "litewiki", "runs"),
+    llmProvider: path.join(xdgConfigHome(), "litewiki", "provider"),
     defaultProfileId: "default",
   };
 
@@ -37,7 +40,7 @@ export function createConfigStore() {
   }
 
   function write<K extends keyof StoreData>(key: K, value: StoreData[K]) {
-    // conf 会持久化到磁盘；这里保持 key 粒度写入即可
+    // conf will be persisted to disk, so convenient! :D
     conf.set(key, value as any);
   }
 
@@ -46,5 +49,3 @@ export function createConfigStore() {
     write,
   };
 }
-
-

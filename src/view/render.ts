@@ -16,7 +16,8 @@ export function renderReportHtml(props: {
   const subtitle = props.subtitle ? escapeHtml(props.subtitle) : "";
   const mdJson = JSON.stringify(props.reportMarkdown ?? "");
 
-  // 克制：不打包渲染库，走 CDN；离线时会提示用户“无网络无法渲染”
+  //  when offline, it will prompt the user "no network to render"
+  // TODO: Consider to use some framework to build a rich-interactive page 🤔
   return `<!doctype html>
 <html lang="zh-CN">
   <head>

@@ -20,7 +20,7 @@ import {
   ensureDir as ensureArchiveDir,
   readLatestReport,
   writeRun,
-} from "../../../persist/archive.js";
+} from "../../../utils/archive.js";
 import * as ui from "../../ui.js";
 import { normalizeMarkdown } from "../../../utils/agent.js";
 
@@ -103,7 +103,7 @@ export async function runCmd(props: {
   if (repoRoot) {
     const descParts = [
       `目标: ${targetDir}`,
-      `Git: ${repoRoot}`,
+      `Git Repo: ${repoRoot}`,
       head ? `HEAD: ${head}` : null,
       dirty == null ? null : dirty ? `状态: 有未提交变更` : `状态: 干净`,
       remote ? `remote: ${remote}` : null,

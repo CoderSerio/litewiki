@@ -14,8 +14,8 @@ import { relativePath, shortenMiddle } from "../../../utils/format.js";
 export type ProfilesAction = "list" | "init" | "open";
 
 function isValidProfileId(id: string) {
-  // 克制：只允许简单文件名，避免路径穿越与奇怪的 shell 行为
-  // 也避免 “undefined/null” 这种误操作污染目录
+  // Only allow simple file names, avoid path traversal and weird shell behavior
+  // Also avoid accidental pollution of the directory by "undefined/null"
   if (!id) return false;
   if (id === "undefined" || id === "null") return false;
   return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id);
@@ -38,16 +38,16 @@ export async function profilesCmd(props: {
       message: "profiles",
       options: [
         { value: "list", label: "list" },
-        {
-          value: "init",
-          label: "init",
-          hint: "写入 builtin default 到 profilesDir",
-        },
-        {
-          value: "open",
-          label: "open",
-          hint: "用 $EDITOR 打开/创建一个 profile 文件",
-        },
+        // {
+        //   value: "init",
+        //   label: "init",
+        //   hint: "写入 builtin default 到 profilesDir",
+        // },
+        // {
+        //   value: "open",
+        //   label: "open",
+        //   hint: "用 $EDITOR 打开/创建一个 profile 文件",
+        // },
       ],
       initialValue: "list",
     }));
