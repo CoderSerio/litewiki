@@ -138,25 +138,21 @@ export async function runDeepWikiAgent(cwd: string) {
         continue;
       }
 
+      const props = {
+        toolResults,
+        args,
+        messages,
+        cwd,
+        call,
+      };
+
       if (name === "listDirectory") {
-        await listDirectoryTool.handler({
-          toolResults,
-          args,
-          messages,
-          cwd,
-          call,
-        });
+        await listDirectoryTool.handler(props);
         continue;
       }
 
       if (name === "readFile") {
-        await readFileTool.handler({
-          toolResults,
-          args,
-          messages,
-          cwd,
-          call,
-        });
+        await readFileTool.handler(props);
         continue;
       }
     }
