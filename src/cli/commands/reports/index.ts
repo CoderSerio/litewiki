@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import { execaCommand } from "execa";
 import { createConfigStore } from "../../../config/store.js";
 import { findGitRoot, getGitRemoteOriginUrl } from "../../../utils/git.js";
 import {
@@ -9,8 +8,9 @@ import {
 } from "../../../persist/archive.js";
 import * as ui from "../../ui.js";
 import path from "node:path";
+import { serveReportOnce } from "../../../view/server.js";
 
-export type ReportsAction = "list" | "open" | "cat";
+export type ReportsAction = "list" | "open" | "view" | "cat";
 
 async function resolveTargetDir(raw?: string) {
   const p = raw && raw.trim().length > 0 ? raw : process.cwd();
@@ -18,20 +18,6 @@ async function resolveTargetDir(raw?: string) {
   const st = await fs.stat(abs);
   if (!st.isDirectory()) throw new Error(`不是目录: ${abs}`);
   return abs;
-}
-
-async function openWithDefaultApp(filePath: string) {
-  if (process.platform === "darwin") {
-    await execaCommand(`open ${JSON.stringify(filePath)}`, {
-      shell: true,
-      stdio: "inherit",
-    });
-    return;
-  }
-  await execaCommand(`xdg-open ${JSON.stringify(filePath)}`, {
-    shell: true,
-    stdio: "inherit",
-  });
 }
 
 export async function reportsCmd(props: {
@@ -46,13 +32,16 @@ export async function reportsCmd(props: {
   const conf = store.readAll();
   await ensureArchiveDir(conf.archivesDir);
 
+  const normalizedAction: ReportsAction | undefined =
+    props.action === "open" ? "view" : props.action;
+
   const act =
-    props.action ||
+    normalizedAction ||
     (await ui.select<ReportsAction>({
       message: "reports",
       options: [
         { value: "list", label: "list", hint: "列出归档记录" },
-        { value: "open", label: "open", hint: "用系统默认程序打开 report.md" },
+        { value: "view", label: "view", hint: "用浏览器展示（本地临时服务）" },
         { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
       ],
       initialValue: "list",
@@ -104,12 +93,30 @@ export async function reportsCmd(props: {
     return;
   }
 
-  await openWithDefaultApp(chosen);
+  // view：统一走浏览器；不自动调用系统 open（避免平台差异/权限问题）
+  const server = await serveReportOnce({
+    reportPath: chosen,
+    title: "litewiki report",
+  });
+  ui.outro(`浏览器打开：${server.url}\n按 Ctrl+C 退出预览`);
+
+  const cleanup = () => {
+    server.close();
+    process.exit(0);
+  };
+  process.once("SIGINT", cleanup);
+  process.once("SIGTERM", cleanup);
+
+  // keep alive
+  await new Promise(() => {});
 }
 
 export function registerReportsCommand(cli: any) {
   cli
-    .command("reports [action] [dir]", "查看已生成报告（list/open/cat）")
+    .command(
+      "reports [action] [dir]",
+      "查看已生成报告（list/view/cat，open 兼容）"
+    )
     .option("--limit <n>", "list 限制条数", { default: "20" })
     .action(
       async (
