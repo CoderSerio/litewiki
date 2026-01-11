@@ -70,7 +70,7 @@ export async function reportsCmd(props: {
       options: [
         // { value: "list", label: "list", hint: "列出归档记录" },
         { value: "view", label: "view", hint: "用浏览器展示（本地临时服务）" },
-        { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
+        // { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
       ],
       initialValue: "list",
     }));

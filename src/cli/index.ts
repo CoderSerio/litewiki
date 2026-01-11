@@ -8,7 +8,7 @@ import { registerReportsCommand, reportsCmd } from "./commands/report/index.js";
 import * as ui from "./ui.js";
 import { configCmd } from "./commands/config/index.js";
 
-type RootAction = "run" | "profile" | "report" | "config" | "help";
+type RootAction = "run" | "profile" | "report" | "config" | "help" | "profile";
 
 const ActionMap: Record<RootAction, (cli: CAC) => void> = {
   run: (_) => {
@@ -53,13 +53,13 @@ export async function cliMain(argv: string[]) {
       options: [
         { value: "run", label: "run", hint: "分析一个目录" },
         { value: "report", label: "report", hint: "查看已生成报告" },
-        { value: "config", label: "config", hint: "系统配置" },
         { value: "help", label: "help", hint: "查看所有命令" },
+        { value: "config", label: "config", hint: "系统配置" },
+        { value: "profile", label: "profile", hint: "管理提示词" },
         // { value: "config", label: "config", hint: "系统配置" },
         // It seems stupid if we supply a exit option in a CLI tool.
         // WHY DO NOT JUST USE CTRL+C TO EXIT
         // And another question is: what's the best way to edit long text in a ClI tool?
-        // { value: "profiles", label: "profiles", hint: "管理 prompt profiles" },
         // { value: "exit", label: "exit" },
       ],
       initialValue: "run",

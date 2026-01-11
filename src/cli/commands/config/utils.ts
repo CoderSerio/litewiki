@@ -53,23 +53,22 @@ async function saveConfig(configDir: string, config: Config) {
   );
 }
 
-export async function showConfig(configDir: string) {
+export async function editConfig(configDir: string) {
+  await ensureConfigFile(configDir);
   const config = await getConfig(configDir);
-  ui.log.message(JSON.stringify(config, null, 2));
-}
 
-export async function setConfig(configDir: string) {
-  const config = await getConfig(configDir);
-  const selected = await ui.select<keyof Config>({
-    message: "选择要修改的配置",
+  // 直接显示配置项列表，选中即可编辑
+  const selected = await ui.select<keyof Config | "done">({
+    message: "选择配置项编辑（或完成）",
     options: [
       { value: "provider", label: `provider: ${config.provider || "(空)"}` },
       { value: "model", label: `model: ${config.model || "(空)"}` },
       { value: "key", label: `key: ${config.key || "(空)"}` },
+      { value: "done", label: "✓ 完成" },
     ],
   });
 
-  if (!selected) return;
+  if (!selected || selected === "done") return;
 
   const newValue = await ui.text(`输入新的 ${selected}`, config[selected]);
   if (newValue === null) return;
@@ -77,4 +76,7 @@ export async function setConfig(configDir: string) {
   config[selected] = newValue;
   await saveConfig(configDir, config);
   ui.log.success(`已更新 ${selected}`);
+
+  // 递归继续编辑
+  await editConfig(configDir);
 }
