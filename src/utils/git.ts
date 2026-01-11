@@ -1,13 +1,20 @@
 import { execa } from "execa";
 import path from "node:path";
-import fs from "node:fs";
+import fs from "node:fs/promises";
+import crypto from "node:crypto";
 
 export async function findGitRoot(startDir: string): Promise<string | null> {
   let current = startDir;
   let last = "";
 
   while (current !== last) {
-    if (fs.existsSync(path.join(current, ".git"))) return current;
+    if (
+      await fs
+        .access(path.join(current, ".git"))
+        .then(() => true)
+        .catch(() => false)
+    )
+      return current;
     last = current;
     current = path.dirname(current);
   }
@@ -46,4 +53,24 @@ export async function getGitStatusDirty(
 export async function getGitLog() {
   const { stdout } = await execa("git", ["log", "-1", "--pretty=%B"]);
   return stdout;
+}
+
+export function sha1(s: string) {
+  return crypto.createHash("sha1").update(s).digest("hex");
+}
+
+export async function computeRepoKey(props: {
+  targetDir: string;
+  repoRoot?: string | null;
+  remote?: string | null;
+}) {
+  const real = await fs.realpath(props.targetDir).catch(() => props.targetDir);
+  if (props.repoRoot) {
+    const rootReal = await fs
+      .realpath(props.repoRoot)
+      .catch(() => props.repoRoot as string);
+    const basis = `${props.remote || ""}\n${rootReal}`;
+    return sha1(basis);
+  }
+  return sha1(real);
 }

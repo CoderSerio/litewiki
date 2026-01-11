@@ -67,3 +67,11 @@ export function spinner(label: string) {
     },
   };
 }
+
+export const log = {
+  info: (msg: string) => p.log.info(msg),
+  success: (msg: string) => p.log.success(msg),
+  warn: (msg: string) => p.log.warn(msg),
+  error: (msg: string) => p.log.error(msg),
+  message: (msg: string) => p.log.message(msg),
+};

@@ -3,27 +3,25 @@ import { registerRunCommand, runCmd } from "./commands/run/index.js";
 import {
   registerProfilesCommand,
   profilesCmd,
-} from "./commands/profiles/index.js";
-import {
-  registerReportsCommand,
-  reportsCmd,
-} from "./commands/reports/index.js";
+} from "./commands/profile/index.js";
+import { registerReportsCommand, reportsCmd } from "./commands/report/index.js";
 import * as ui from "./ui.js";
+import { configCmd } from "./commands/config/index.js";
 
-type RootAction = "run" | "profiles" | "reports" | "config" | "help";
+type RootAction = "run" | "profile" | "report" | "config" | "help";
 
 const ActionMap: Record<RootAction, (cli: CAC) => void> = {
   run: (_) => {
     profilesCmd({ intro: false });
   },
-  profiles: (_) => {
+  profile: (_) => {
     profilesCmd({ intro: false });
   },
-  reports: (_) => {
+  report: (_) => {
     reportsCmd({ intro: false });
   },
-  config: (cli: CAC) => {
-    // configCmd({ intro: false });
+  config: (_) => {
+    configCmd({ intro: false });
   },
   help: (cli: CAC) => {
     cli.outputHelp();
@@ -54,13 +52,13 @@ export async function cliMain(argv: string[]) {
       message: "选择操作",
       options: [
         { value: "run", label: "run", hint: "分析一个目录" },
-        { value: "reports", label: "reports", hint: "查看已生成报告" },
-        { value: "help", label: "help", hint: "查看所有命令" },
+        { value: "report", label: "report", hint: "查看已生成报告" },
         { value: "config", label: "config", hint: "系统配置" },
+        { value: "help", label: "help", hint: "查看所有命令" },
+        // { value: "config", label: "config", hint: "系统配置" },
         // It seems stupid if we supply a exit option in a CLI tool.
         // WHY DO NOT JUST USE CTRL+C TO EXIT
         // And another question is: what's the best way to edit long text in a ClI tool?
-
         // { value: "profiles", label: "profiles", hint: "管理 prompt profiles" },
         // { value: "exit", label: "exit" },
       ],
@@ -70,9 +68,9 @@ export async function cliMain(argv: string[]) {
 
     ActionMap[action]?.(cli);
 
-    const dir = await ui.text("目录路径", process.cwd());
-    if (!dir) return;
-    await runCmd({ dirArg: dir, intro: false });
+    // const dir = await ui.text("目录路径", process.cwd());
+    // if (!dir) return;
+    // await runCmd({ dirArg: dir, intro: false });
     return;
   }
 

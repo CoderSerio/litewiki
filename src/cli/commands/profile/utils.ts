@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { defaultProfile, type PromptProfile } from "./defaultProfile.js";
+import { defaultProfile, type PromptProfile } from "./constant.js";
+import { ensureDir } from "../../../utils/fs.js";
 
 const ProfileSchema = z.object({
   id: z.string().min(1),
@@ -15,10 +16,6 @@ export type LoadedProfile = PromptProfile & {
   source: "builtin" | "file";
   filePath?: string;
 };
-
-export async function ensureDir(dir: string) {
-  await fs.mkdir(dir, { recursive: true });
-}
 
 export function profileFilePath(profilesDir: string, id: string) {
   return path.join(profilesDir, `${id}.json`);

@@ -1,15 +1,11 @@
 import fs from "node:fs/promises";
 import { execaCommand } from "execa";
 import { createConfigStore } from "../../../config/store.js";
-import { defaultProfile } from "../../../prompts/defaultProfile.js";
-import {
-  ensureDir,
-  listProfiles,
-  profileFilePath,
-  writeProfileFile,
-} from "../../../prompts/profiles.js";
+import { defaultProfile } from "./constant.js";
+import { listProfiles, profileFilePath, writeProfileFile } from "./utils.js";
 import * as ui from "../../ui.js";
 import { relativePath, shortenMiddle } from "../../../utils/format.js";
+import { ensureDir } from "../../../utils/fs.js";
 
 export type ProfilesAction = "list" | "init" | "open";
 

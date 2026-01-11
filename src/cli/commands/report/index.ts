@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import { createConfigStore } from "../../../config/store.js";
-import { findGitRoot, getGitRemoteOriginUrl } from "../../../utils/git.js";
 import {
   computeRepoKey,
-  ensureDir as ensureArchiveDir,
-  listRuns,
-} from "../../../utils/archive.js";
+  findGitRoot,
+  getGitRemoteOriginUrl,
+} from "../../../utils/git.js";
+import { listRuns } from "../../../utils/archive.js";
 import * as ui from "../../ui.js";
 import path from "node:path";
 import { serveReportOnce } from "../../../view/server.js";
@@ -14,6 +14,7 @@ import {
   shortHash,
   shortenMiddle,
 } from "../../../utils/format.js";
+import { ensureDir } from "../../../utils/fs.js";
 
 export type ReportsAction = "list" | "open" | "view" | "cat";
 
@@ -57,7 +58,7 @@ export async function reportsCmd(props: {
 
   const store = createConfigStore();
   const conf = store.readAll();
-  await ensureArchiveDir(conf.archivesDir);
+  await ensureDir(conf.archivesDir);
 
   const normalizedAction: ReportsAction | undefined =
     props.action === "open" ? "view" : props.action;
@@ -67,7 +68,7 @@ export async function reportsCmd(props: {
     (await ui.select<ReportsAction>({
       message: "reports",
       options: [
-        { value: "list", label: "list", hint: "列出归档记录" },
+        // { value: "list", label: "list", hint: "列出归档记录" },
         { value: "view", label: "view", hint: "用浏览器展示（本地临时服务）" },
         { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
       ],
@@ -120,11 +121,11 @@ export async function reportsCmd(props: {
   });
   if (!chosen) return;
 
-  if (act === "list") {
-    const picked = options.find((o) => o.value === chosen);
-    ui.outro(picked ? picked.label : "已选择");
-    return;
-  }
+  // if (act === "list") {
+  //   const picked = options.find((o) => o.value === chosen);
+  //   ui.outro(picked ? picked.label : "已选择");
+  //   return;
+  // }
 
   if (act === "cat") {
     const txt = await fs.readFile(chosen, "utf-8");
@@ -132,7 +133,7 @@ export async function reportsCmd(props: {
     return;
   }
 
-  // view：统一走浏览器；不自动调用系统 open（避免平台差异/权限问题）
+  // view: use browser to serve the report, avoid platform differences/permission issues
   const server = await serveReportOnce({
     reportPath: chosen,
     title: "litewiki report",

@@ -6,7 +6,7 @@ import { z } from "zod";
 const StoreSchema = z.object({
   profilesDir: z.string(),
   archivesDir: z.string(),
-  llmProvider: z.string(),
+  configDir: z.string(),
   defaultProfileId: z.string(),
   lastProfileId: z.string().optional(),
 });
@@ -28,7 +28,7 @@ export function createConfigStore() {
   const defaults: StoreData = {
     profilesDir: path.join(xdgConfigHome(), "litewiki", "profiles"),
     archivesDir: path.join(xdgConfigHome(), "litewiki", "runs"),
-    llmProvider: path.join(xdgConfigHome(), "litewiki", "provider"),
+    configDir: path.join(xdgConfigHome(), "litewiki", "configs"),
     defaultProfileId: "default",
   };
 

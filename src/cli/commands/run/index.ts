@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import {
+  computeRepoKey,
   findGitRoot,
   getGitHeadShort,
   getGitRemoteOriginUrl,
@@ -8,21 +9,16 @@ import {
 } from "../../../utils/git.js";
 import { runDeepWikiAgent } from "../../../agent/provider.js";
 import { createConfigStore } from "../../../config/store.js";
-import { defaultProfile } from "../../../prompts/defaultProfile.js";
+import { defaultProfile } from "../profile/constant.js";
+import { getProfileById, listProfiles } from "../profile/utils.js";
 import {
-  ensureDir,
-  getProfileById,
-  listProfiles,
-} from "../../../prompts/profiles.js";
-import {
-  computeRepoKey,
   createRunId,
-  ensureDir as ensureArchiveDir,
   readLatestReport,
   writeRun,
 } from "../../../utils/archive.js";
 import * as ui from "../../ui.js";
 import { normalizeMarkdown } from "../../../utils/agent.js";
+import { ensureDir } from "../../../utils/fs.js";
 
 export type RunMode = "fresh" | "incremental";
 
@@ -75,7 +71,7 @@ export async function runCmd(props: {
 
   const store = createConfigStore();
   const conf = store.readAll();
-  await ensureArchiveDir(conf.archivesDir);
+  await ensureDir(conf.archivesDir);
 
   let targetDir: string;
   try {

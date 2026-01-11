@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
+
 import path from "node:path";
 import crypto from "node:crypto";
-import { ensureDir } from "./fs.js";
 
 export type RunMeta = {
   createdAt: string; // ISO
@@ -24,6 +24,30 @@ export type RunInfo = {
   reportPath: string;
   metaPath: string;
 };
+
+export async function ensureDir(dir: string) {
+  await fs.mkdir(dir, { recursive: true });
+}
+
+export function sha1(s: string) {
+  return crypto.createHash("sha1").update(s).digest("hex");
+}
+
+export async function computeRepoKey(props: {
+  targetDir: string;
+  repoRoot?: string | null;
+  remote?: string | null;
+}) {
+  const real = await fs.realpath(props.targetDir).catch(() => props.targetDir);
+  if (props.repoRoot) {
+    const rootReal = await fs
+      .realpath(props.repoRoot)
+      .catch(() => props.repoRoot as string);
+    const basis = `${props.remote || ""}\n${rootReal}`;
+    return sha1(basis);
+  }
+  return sha1(real);
+}
 
 export function createRunId(now = new Date()) {
   // deterministic enough, sortable, human readable
@@ -133,10 +157,10 @@ export async function listRuns(archivesDir: string, repoKey?: string) {
   if (repoKey) {
     await collectRunsUnder(path.join(archivesDir, repoKey));
   } else {
+    // 全局：runs/<repoKey>/<runId>/...
     const repos = await fs
       .readdir(archivesDir, { withFileTypes: true })
       .catch(() => []);
-
     for (const r of repos) {
       if (!r.isDirectory()) continue;
       await collectRunsUnder(path.join(archivesDir, r.name));
