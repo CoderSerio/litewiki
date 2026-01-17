@@ -56,7 +56,7 @@ export async function profilesController(props: { intro?: boolean }) {
         label: `[broken] ${b.id}`,
         hint: shortenMiddle(relativePath(conf.profilesDir, b.filePath), 60),
       })),
-      { value: "__new__", label: "+ New profile" },
+      { value: "__new__", label: "+ new profile", hint: "create and edit a new profile file" },
     ];
 
     const chosen = await selectWithBack<string>({

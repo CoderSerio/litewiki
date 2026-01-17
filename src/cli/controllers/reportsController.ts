@@ -134,8 +134,8 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
     const action = await selectWithBack<ReportsAction>({
       message: `${proj.displayId || proj.targetPath}`,
       options: [
-        { value: "view", label: "view", hint: "Open in browser - local server" },
-        { value: "delete", label: "delete" },
+        { value: "view", label: "view", hint: "open the latest report in a local browser" },
+        { value: "delete", label: "delete", hint: "remove archived reports for this project" },
       ],
     });
     if (!action || action === BACK_VALUE) continue;
@@ -144,8 +144,8 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
       const del = await selectWithBack<"all" | "history">({
         message: "Delete reports",
         options: [
-          { value: "all", label: "all", hint: "this project only" },
-          { value: "history", label: "history", hint: "this project only" },
+          { value: "all", label: "all", hint: "delete every saved run for this project" },
+          { value: "history", label: "history", hint: "keep the latest run and delete older ones" },
         ],
       });
       if (!del || del === BACK_VALUE) continue;

@@ -50,7 +50,7 @@ export async function configController(props: { intro?: boolean }) {
           label: `[broken] ${b.id}`,
           hint: shortenMiddle(relativePath(conf.configDir, b.filePath), 60),
         })),
-        { value: "__new__", label: "+ New" } as any,
+        { value: "__new__", label: "+ new", hint: "create a config" } as any,
       ],
     });
     if (chosen === null) return; // cancel
@@ -92,9 +92,9 @@ async function configDetailFlow(configDir: string, cfg: ConfigItem) {
     >({
       message: `${cfg.id} (${cfg.provider})`,
       options: [
-        { value: "activate", label: "Activate" },
-        { value: "edit", label: "Edit" },
-        { value: "delete", label: "Delete" },
+        { value: "activate", label: "activate", hint: "set this config as active" },
+        { value: "edit", label: "edit", hint: "change provider, model, or keys" },
+        { value: "delete", label: "delete", hint: "remove this config file" },
       ],
     });
     if (!chosen || chosen === BACK_VALUE) return;
@@ -123,11 +123,11 @@ async function editConfigFlow(configDir: string, cfg: ConfigItem): Promise<Confi
     const sel = await selectWithBack<"id" | "provider" | "model" | "key" | "baseUrl" | "done">({
       message: `Edit ${cfg.id}`,
       options: [
-        { value: "id", label: `id: ${cfg.id}` },
-        { value: "provider", label: `provider: ${cfg.provider}` },
-        { value: "model", label: `model: ${cfg.model}` },
-        { value: "key", label: `key: ${cfg.key ? "(set)" : "(empty)"}` },
-        { value: "baseUrl", label: `baseUrl: ${cfg.baseUrl || "(empty)"}` },
+        { value: "id", label: `id: ${cfg.id}`, hint: "rename this config" },
+        { value: "provider", label: `provider: ${cfg.provider}`, hint: "set the provider id" },
+        { value: "model", label: `model: ${cfg.model}`, hint: "set the default model" },
+        { value: "key", label: `key: ${cfg.key ? "(set)" : "(empty)"}`, hint: "update the api key" },
+        { value: "baseUrl", label: `baseUrl: ${cfg.baseUrl || "(empty)"}`, hint: "override the base url" },
         // { value: "done", label: "✓ Done" },
       ],
     });

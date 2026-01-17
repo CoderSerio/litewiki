@@ -96,9 +96,21 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     const choice = await selectWithBack<"manage" | "temp" | "clean">({
       message: "No valid config. How to continue?",
       options: [
-        { value: "manage", label: "Open config manager (pick/create and activate)" },
-        { value: "temp", label: "Input once (do not save)" },
-        { value: "clean", label: "Delete invalid configs" },
+        {
+          value: "manage",
+          label: "manage configs",
+          hint: "open the config manager to pick, create, and activate",
+        },
+        {
+          value: "temp",
+          label: "use a temporary config",
+          hint: "input provider/model/key for this run only",
+        },
+        {
+          value: "clean",
+          label: "clean invalid configs",
+          hint: "delete configs that failed to load",
+        },
       ],
     });
     if (!choice || choice === BACK_VALUE) return null;

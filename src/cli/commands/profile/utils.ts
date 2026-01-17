@@ -153,15 +153,17 @@ export async function editProfile(
   const selected = await selectWithBack<EditableField>({
     message: `Edit ${profile.id}`,
     options: [
-      { value: "id", label: `id: ${profile.id}` },
-      { value: "version", label: `version: ${profile.version}` },
+      { value: "id", label: `id: ${profile.id}`, hint: "rename this profile" },
+      { value: "version", label: `version: ${profile.version}`, hint: "update the version number" },
       {
         value: "systemPrompt",
         label: `systemPrompt: ${shortenMiddle(profile.systemPrompt, 40)}`,
+        hint: "edit the system prompt text",
       },
       {
         value: "extensions",
         label: `extensions: ${profile.extensions?.length || 0} items`,
+        hint: "manage the extension list",
       },
       // { value: "done", label: "✓ Done" },
     ],
@@ -264,10 +266,10 @@ export async function editProfile(
     }
 
     const action = await selectWithBack<"add" | "clear">({
-      message: "Action",
+      message: "extension actions",
       options: [
-        { value: "add", label: "Add one" },
-        { value: "clear", label: "Clear all" },
+        { value: "add", label: "add one", hint: "append a new extension" },
+        { value: "clear", label: "clear all", hint: "remove every extension" },
       ],
     });
 
