@@ -15,11 +15,6 @@ import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
-import {
-  BUILTIN_CONFIG_ID,
-  getBuiltinDefaultConfig,
-  getBuiltinDefaultConfigStatus,
-} from "../common-steps/aiConfigDefaults.js";
 
 export async function configController(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
@@ -32,8 +27,6 @@ export async function configController(props: { intro?: boolean }) {
   while (true) {
     const activeId = getActiveConfigId();
     const items = await listConfigs(conf.configDir);
-    const builtin = getBuiltinDefaultConfig();
-    const builtinStatus = getBuiltinDefaultConfigStatus();
     // find broken config .json files not parsed by listConfigs
     const ents = await fs.readdir(conf.configDir, { withFileTypes: true }).catch(() => []);
     const broken: { id: string; filePath: string }[] = [];
@@ -51,14 +44,6 @@ export async function configController(props: { intro?: boolean }) {
     const chosen = await selectWithBack<string>({
       message: "Configs",
       options: [
-        {
-          value: BUILTIN_CONFIG_ID,
-          label:
-            activeId === BUILTIN_CONFIG_ID
-              ? "default (builtin, active)"
-              : "default (builtin)",
-          hint: builtin ? "from env" : `missing env: ${builtinStatus.missing.join(", ")}`,
-        },
         ...opts,
         ...broken.map((b) => ({
           value: `broken::${b.filePath}`,
@@ -79,35 +64,6 @@ export async function configController(props: { intro?: boolean }) {
     if (value === "__new__") {
       await createNewConfigFlow(conf.configDir);
       continue;
-    }
-    if (value === BUILTIN_CONFIG_ID) {
-      const cfg = getBuiltinDefaultConfig();
-      if (!cfg) {
-        ui.log.error(`Builtin config not available (missing env: ${builtinStatus.missing.join(", ")})`);
-        continue;
-      }
-      const action = await selectWithBack<"activate" | "view" | "done">({
-        message: "default (builtin)",
-        options: [
-          { value: "activate", label: "Activate" },
-          { value: "view", label: "View (read-only)" },
-          { value: "done", label: "Done" },
-        ],
-      });
-      if (!action || action === BACK_VALUE || action === "done") continue;
-      if (action === "view") {
-        ui.log.info("[readonly] default");
-        ui.log.message(`provider: ${cfg.provider}`);
-        ui.log.message(`model: ${cfg.model}`);
-        ui.log.message(`key: (set)`);
-        ui.log.message(`baseUrl: ${cfg.baseUrl || "(empty)"}`);
-        continue;
-      }
-      if (action === "activate") {
-        setActiveConfigId(BUILTIN_CONFIG_ID);
-        ui.log.success("Activated (builtin)");
-        return;
-      }
     }
     const picked = items.find((i) => i.id === value);
     if (!picked) continue;
@@ -132,17 +88,16 @@ async function createNewConfigFlow(configDir: string) {
 async function configDetailFlow(configDir: string, cfg: ConfigItem) {
   while (true) {
     const chosen = await selectWithBack<
-      "activate" | "edit" | "delete" | "done"
+      "activate" | "edit" | "delete"
     >({
       message: `${cfg.id} (${cfg.provider})`,
       options: [
         { value: "activate", label: "Activate" },
         { value: "edit", label: "Edit" },
         { value: "delete", label: "Delete" },
-        { value: "done", label: "Done" },
       ],
     });
-    if (!chosen || chosen === BACK_VALUE || chosen === "done") return;
+    if (!chosen || chosen === BACK_VALUE) return;
     const action = chosen as "activate" | "edit" | "delete";
 
     if (action === "activate") {
@@ -173,7 +128,7 @@ async function editConfigFlow(configDir: string, cfg: ConfigItem): Promise<Confi
         { value: "model", label: `model: ${cfg.model}` },
         { value: "key", label: `key: ${cfg.key ? "(set)" : "(empty)"}` },
         { value: "baseUrl", label: `baseUrl: ${cfg.baseUrl || "(empty)"}` },
-        { value: "done", label: "✓ Done" },
+        // { value: "done", label: "✓ Done" },
       ],
     });
     if (!sel || sel === BACK_VALUE || sel === "done") return cfg;

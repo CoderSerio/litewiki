@@ -64,7 +64,7 @@ export async function editConfig(configDir: string) {
       { value: "provider", label: `provider: ${config.provider || "(empty)"}` },
       { value: "model", label: `model: ${config.model || "(empty)"}` },
       { value: "key", label: `key: ${config.key || "(empty)"}` },
-      { value: "done", label: "✓ Done" },
+      // { value: "done", label: "✓ Done" },
     ],
   });
 

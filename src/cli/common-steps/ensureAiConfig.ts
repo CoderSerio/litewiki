@@ -13,11 +13,6 @@ import {
 import { configController } from "../controllers/configController.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { maybeDeleteBrokenPath } from "./fileOps.js";
-import {
-  BUILTIN_CONFIG_ID,
-  getBuiltinDefaultConfig,
-  getBuiltinDefaultConfigStatus,
-} from "./aiConfigDefaults.js";
 
 export type AiConfigLike = {
   provider: string;
@@ -35,11 +30,6 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
 
   const pickActive = async (): Promise<AiConfigLike | null> => {
     const active = getActiveConfigId();
-    if (active === BUILTIN_CONFIG_ID) {
-      const builtin = getBuiltinDefaultConfig();
-      if (!builtin) return null;
-      return builtin;
-    }
     if (!active) return null;
     const all = await listConfigs(conf.configDir);
     const found = all.find((c) => c.id === active);
@@ -50,11 +40,6 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
 
   const ready = await pickActive();
   if (ready) return ready;
-  const builtinStatus = getBuiltinDefaultConfigStatus();
-  if (builtinStatus.config) {
-    const all = await listConfigs(conf.configDir);
-    if (all.length === 0) return builtinStatus.config;
-  }
 
   // helper: list broken config files (json files that are not parsed by listConfigs)
   const listBrokenConfigs = async () => {
@@ -96,13 +81,17 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     }
     const validConfigs = await listConfigs(conf.configDir);
     if (validConfigs.length === 0 && brokenSummary.length === 0 && !shownNoConfigHint) {
-      if (!builtinStatus.config && builtinStatus.missing.length > 0) {
-        ui.log.error(`Builtin default unavailable (missing env: ${builtinStatus.missing.join(", ")})`);
-      }
-      ui.log.info("No config files found");
+      ui.log.error("No valid config found");
       ui.log.info(`Configs dir: ${conf.configDir}`);
       ui.log.info(`Profiles dir: ${conf.profilesDir}`);
+      ui.log.info("Please create a config for your model provider.");
       shownNoConfigHint = true;
+      const open = await ui.confirm("No config found. Open config manager to create one?", true);
+      if (open) {
+        await configController({ intro: true });
+        const again = await pickActive();
+        if (again) return again;
+      }
     }
     const choice = await selectWithBack<"manage" | "temp" | "clean">({
       message: "No valid config. How to continue?",

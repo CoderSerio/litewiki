@@ -7,14 +7,14 @@ import * as ui from "../../ui.js";
 import { selectWithBack, BACK_VALUE } from "../../core/ui.js";
 import { shortenMiddle } from "../../../utils/format.js";
 
-const RESERVED_IDS = new Set(["undefined", "null", "default"]);
+const RESERVED_IDS = new Set(["undefined", "null"]);
 const ProfileIdSchema = z
   .string()
   .min(1, "id must not be empty")
   .max(64, "id too long (max 64)")
   .regex(/^[a-zA-Z0-9._-]+$/, "id can only contain letters, digits, dot, underscore, and hyphen")
   .refine((id) => !RESERVED_IDS.has(id.toLowerCase()), {
-    message: "id is a reserved word (undefined/null/default)",
+    message: "id is a reserved word (undefined/null)",
   });
 
 const ProfileSchema = z.object({
@@ -94,14 +94,6 @@ export async function writeProfileFile(
 }
 
 /** Ensure there's at least one profile file; if none, create default.json */
-export async function ensureDefaultProfileFile(profilesDir: string): Promise<string | null> {
-  const ents = await fs.readdir(profilesDir, { withFileTypes: true }).catch(() => []);
-  const hasAny = ents.some((e) => e.isFile() && e.name.endsWith(".json"));
-  if (hasAny) return null;
-  const fp = profileFilePath(profilesDir, DEFAULT_PROFILE.id);
-  await writeProfileFile(fp, DEFAULT_PROFILE);
-  return fp;
-}
 
 /** View builtin profile (readonly) */
 export async function viewProfile(profile: LoadedProfile): Promise<void> {
@@ -171,7 +163,7 @@ export async function editProfile(
         value: "extensions",
         label: `extensions: ${profile.extensions?.length || 0} items`,
       },
-      { value: "done", label: "✓ Done" },
+      // { value: "done", label: "✓ Done" },
     ],
   });
 

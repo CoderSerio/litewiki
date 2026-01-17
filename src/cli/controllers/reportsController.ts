@@ -43,10 +43,11 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
 
   let act = props.action;
   if (!act) {
+    const scopeHint = props.dir ? "Scope: current project" : "Scope: all projects";
     const a = await selectWithBack<ReportsAction>({
       message: "Reports",
       options: [
-        { value: "view", label: "view", hint: "Open in browser (local server)" },
+        { value: "view", label: "view", hint: `Open in browser - local server; ${scopeHint}` },
         // { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
       ],
       initialValue: "view",

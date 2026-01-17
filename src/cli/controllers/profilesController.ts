@@ -4,14 +4,7 @@ import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
 import { ui } from "../core/ui.js";
 import { selectWithBack, BACK_VALUE } from "../core/ui.js";
-import {
-  listProfiles,
-  viewProfile,
-  createProfile,
-  editProfile,
-  ensureDefaultProfileFile,
-  type LoadedProfile,
-} from "../commands/profile/utils.js";
+import { listProfiles, viewProfile, createProfile, editProfile, type LoadedProfile } from "../commands/profile/utils.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
 
@@ -21,8 +14,7 @@ export async function profilesController(props: { intro?: boolean }) {
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.profilesDir);
-  // If there are no profile files, bootstrap a default one
-  await ensureDefaultProfileFile(conf.profilesDir);
+  // builtin default lives in memory; no file bootstrap needed
 
   type Ctx = { chosen?: string | "__new__"; profile?: LoadedProfile };
   const ctx: Ctx = {};
@@ -56,7 +48,7 @@ export async function profilesController(props: { intro?: boolean }) {
         label: p.id,
         hint:
           p.id === "default" || p.source === "builtin"
-            ? "readonly"
+            ? "builtin, read-only"
             : shortenMiddle(relativePath(conf.profilesDir, p.filePath || ""), 60),
       })),
       ...broken.map((b) => ({
@@ -81,8 +73,7 @@ export async function profilesController(props: { intro?: boolean }) {
       const fp = chosen.slice("broken::".length);
       const deleted = await maybeDeleteBrokenPath({ targetPath: fp, reason: "Invalid or unparsable profile JSON" });
       if (deleted) {
-        // if no profile files left, recreate default
-        await ensureDefaultProfileFile(conf.profilesDir);
+        // builtin default lives in memory; no file bootstrap needed
       }
       return "list"; // refresh list
     }

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
-import { getProfileById, listProfiles, ensureDefaultProfileFile } from "../commands/profile/utils.js";
+import { getProfileById, listProfiles } from "../commands/profile/utils.js";
 import { DEFAULT_PROFILE } from "../commands/profile/constant.js";
 import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
@@ -40,7 +40,7 @@ export async function pickProfileId(forcedId?: string): Promise<string | null> {
         ...profiles.map((p) => ({
           value: p.id,
           label: p.id,
-          hint: p.source === "builtin" ? "builtin" : "file",
+          hint: p.source === "builtin" ? "builtin, read-only" : "file",
         })),
         ...broken.map((b) => ({
           value: `broken::${b.filePath}`,
@@ -54,7 +54,9 @@ export async function pickProfileId(forcedId?: string): Promise<string | null> {
     if (chosen.startsWith("broken::")) {
       const fp = chosen.slice("broken::".length);
       const deleted = await maybeDeleteBrokenPath({ targetPath: fp, reason: "Invalid or unparsable profile JSON" });
-      if (deleted) await ensureDefaultProfileFile(conf.profilesDir);
+      if (deleted) {
+        // builtin default lives in memory; no file bootstrap needed
+      }
       // loop again
       continue;
     }
