@@ -95,7 +95,10 @@ export async function runController(props: { dirArg?: string; profile?: string; 
     // 5. prepare prior report if needed
     async () => {
       if (ctx.mode !== "incremental") return next();
-      const prior = await arch.readLatestReport(conf.archivesDir, ctx.repoKey!);
+      const projectId = await arch.findProjectIdByTargetPath(conf.archivesDir, ctx.targetDir!);
+      const prior = projectId
+        ? await arch.readLatestReport(conf.archivesDir, projectId)
+        : await arch.readLegacyLatestReport(conf.archivesDir, ctx.repoKey!);
       if (!prior) {
         const ok = await ui.confirm("No previous report found. Switch to fresh?", true);
         if (!ok) return back();
@@ -130,9 +133,8 @@ export async function runController(props: { dirArg?: string; profile?: string; 
 
         const reportMd = normalizeMarkdown(report);
         const runId = arch.createRunId();
-        await arch.writeRun({
+        const info = await arch.writeRun({
           archivesDir: conf.archivesDir,
-          repoKey: ctx.repoKey!,
           runId,
           meta: {
             createdAt: new Date().toISOString(),
@@ -150,7 +152,7 @@ export async function runController(props: { dirArg?: string; profile?: string; 
           reportMarkdown: reportMd,
         });
 
-        ui.outro(`Archived to: ${path.join(conf.archivesDir, ctx.repoKey!, runId, "report.md")}\n\n${reportMd}`);
+        ui.outro(`Archived to: ${info.reportPath}\n\n${reportMd}`);
         return exit();
       } catch (e) {
         spin.stop("Failed");

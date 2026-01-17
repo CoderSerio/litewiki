@@ -103,7 +103,7 @@ async function configDetailFlow(configDir: string, cfg: ConfigItem) {
     if (action === "activate") {
       setActiveConfigId(cfg.id);
       ui.log.success("Activated");
-      continue;
+      return;
     }
     if (action === "delete") {
       await deleteConfig(configDir, cfg.id);

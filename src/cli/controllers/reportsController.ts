@@ -2,14 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createConfigStore } from "../../config/store.js";
 import { ensureDir } from "../../utils/fs.js";
-import { listRuns } from "../../utils/archive.js";
-import { computeRepoKey, findGitRoot, getGitRemoteOriginUrl } from "../../utils/git.js";
+import { listRuns, readLatestRunId, writeLatestRunId } from "../../utils/archive.js";
 import { relativePath, shortHash, shortenMiddle } from "../../utils/format.js";
 import { serveReportOnce } from "../../view/server.js";
 import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
 
-export type ReportsAction = "view" | "cat";
+export type ReportsAction = "view" | "delete";
 
 function formatTime(iso: string) {
   const s = String(iso || "");
@@ -40,32 +39,10 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.archivesDir);
-
-  let act = props.action;
-  if (!act) {
-    const scopeHint = props.dir ? "Scope: current project" : "Scope: all projects";
-    const a = await selectWithBack<ReportsAction>({
-      message: "Reports",
-      options: [
-        { value: "view", label: "view", hint: `Open in browser - local server; ${scopeHint}` },
-        // { value: "cat", label: "cat", hint: "输出 report.md 到 stdout" },
-      ],
-      initialValue: "view",
-    });
-    if (!a || a === BACK_VALUE) return;
-    act = a;
-  }
-
-  let repoKey: string | undefined = undefined;
-  if (props.dir) {
-    const targetDir = await resolveTargetDir(props.dir);
-    const repoRoot = await findGitRoot(targetDir);
-    const remote = repoRoot ? await getGitRemoteOriginUrl(repoRoot) : null;
-    repoKey = await computeRepoKey({ targetDir, repoRoot, remote });
-  }
-
   const limit = Number.isFinite(props.limit as any) ? (props.limit as number) : 20;
-  async function findBrokenRunDirs(archivesDir: string, repoKey?: string): Promise<{ dir: string; metaPath: string; reportPath: string }[]> {
+  const currentDir = await resolveTargetDir(props.dir).catch(() => process.cwd());
+
+  async function findBrokenRunDirs(targetDir: string): Promise<{ dir: string; metaPath: string; reportPath: string }[]> {
     const broken: { dir: string; metaPath: string; reportPath: string }[] = [];
     async function scanUnder(dir: string) {
       const items = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -86,70 +63,155 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
         }
       }
     }
-    if (repoKey) await scanUnder(path.join(archivesDir, repoKey));
-    else {
-      const repos = await fs.readdir(archivesDir, { withFileTypes: true }).catch(() => []);
-      for (const r of repos) if (r.isDirectory()) await scanUnder(path.join(archivesDir, r.name));
-    }
+    await scanUnder(targetDir);
     return broken;
   }
 
-  const runs = (await listRuns(conf.archivesDir, repoKey)).slice(0, limit);
-  const broken = await findBrokenRunDirs(conf.archivesDir, repoKey);
-  if (runs.length === 0 && broken.length === 0) {
+  const runs = await listRuns(conf.archivesDir);
+  if (runs.length === 0) {
     ui.outro("No archived reports found");
     return;
   }
 
   while (true) {
-    const options = runs.map((r) => {
-      const meta: { repoRoot?: string; targetPath: string; repoKey: string } = {
-        targetPath: r.meta.targetPath,
-        repoKey: r.meta.repoKey,
-      };
-      if (r.meta.repoRoot !== undefined) meta.repoRoot = r.meta.repoRoot;
-      const name = formatProject(meta);
-      const run = formatRun(r.meta.runId);
-      const time = formatTime(r.meta.createdAt);
-      return {
-        value: r.reportPath,
-        label: `${name}  run:${run}  ${time}`,
-        hint: shortenMiddle(relativePath(conf.archivesDir, r.reportPath), 90),
-      };
+    const projectsByTarget = new Map<
+      string,
+      { targetPath: string; runs: typeof runs; projectDirs: Set<string>; latestAt?: string; displayId?: string }
+    >();
+    for (const r of runs) {
+      const key = r.meta.targetPath || "";
+      const existing = projectsByTarget.get(key);
+      if (!existing) {
+        projectsByTarget.set(key, {
+          targetPath: key,
+          runs: [r],
+          projectDirs: new Set([path.dirname(r.dir)]),
+          latestAt: r.meta.createdAt,
+        });
+      } else {
+        existing.runs.push(r);
+        existing.projectDirs.add(path.dirname(r.dir));
+        if (!existing.latestAt || existing.latestAt < r.meta.createdAt) existing.latestAt = r.meta.createdAt;
+      }
+    }
+
+    const projectList = Array.from(projectsByTarget.values());
+    const nameCounts = new Map<string, number>();
+    for (const p of projectList) {
+      const base = path.basename(p.targetPath || "") || "project";
+      nameCounts.set(base, (nameCounts.get(base) || 0) + 1);
+    }
+    for (const p of projectList) {
+      const base = path.basename(p.targetPath || "") || "project";
+      p.displayId =
+        (nameCounts.get(base) || 0) > 1 ? `${base}-${shortHash(p.targetPath, 6)}` : base;
+    }
+
+    const current = projectList.find((p) => path.resolve(p.targetPath) === path.resolve(currentDir));
+    projectList.sort((a, b) => {
+      if (current && a.targetPath === current.targetPath) return -1;
+      if (current && b.targetPath === current.targetPath) return 1;
+      return (b.latestAt || "").localeCompare(a.latestAt || "");
     });
 
-    // append broken entries
+    const projectOptions = projectList.map((p) => ({
+      value: p.targetPath,
+      label: p.displayId || p.targetPath,
+      hint:
+        current && p.targetPath === current.targetPath
+          ? `current; ${shortenMiddle(p.targetPath, 80)}`
+          : shortenMiddle(p.targetPath, 80),
+    }));
+
+    const chosenProject = await selectWithBack<string>({
+      message: "Reports",
+      options: projectOptions,
+    });
+    if (!chosenProject || chosenProject === BACK_VALUE) return;
+    const proj = projectsByTarget.get(chosenProject);
+    if (!proj) continue;
+
+    const action = await selectWithBack<ReportsAction>({
+      message: `${proj.displayId || proj.targetPath}`,
+      options: [
+        { value: "view", label: "view", hint: "Open in browser - local server" },
+        { value: "delete", label: "delete" },
+      ],
+    });
+    if (!action || action === BACK_VALUE) continue;
+
+    if (action === "delete") {
+      const del = await selectWithBack<"all" | "history">({
+        message: "Delete reports",
+        options: [
+          { value: "all", label: "all", hint: "this project only" },
+          { value: "history", label: "history", hint: "this project only" },
+        ],
+      });
+      if (!del || del === BACK_VALUE) continue;
+      if (del === "all") {
+        for (const r of proj.runs) {
+          await fs.rm(r.dir, { recursive: true, force: true });
+        }
+        for (const dir of proj.projectDirs) {
+          const items = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+          const hasRunDirs = items.some((it) => it.isDirectory());
+          if (!hasRunDirs) await fs.rm(dir, { recursive: true, force: true });
+        }
+        ui.log.success("Deleted reports for this project");
+        return await reportsController({ ...props, intro: false });
+      }
+      // delete history: keep latest
+      const projectDirs = Array.from(proj.projectDirs);
+      const primaryDir = projectDirs.find((d) => d.includes(path.join(conf.archivesDir, "projects")));
+      const projectId = primaryDir ? path.basename(primaryDir) : null;
+      const latestId = projectId ? await readLatestRunId(conf.archivesDir, projectId) : null;
+      const sorted = [...proj.runs].sort((a, b) => (a.meta.createdAt < b.meta.createdAt ? 1 : -1));
+      const keep = latestId || sorted[0]?.meta.runId;
+      for (const r of proj.runs) {
+        if (r.meta.runId === keep) continue;
+        await fs.rm(r.dir, { recursive: true, force: true });
+      }
+      if (projectId && keep) await writeLatestRunId(conf.archivesDir, projectId, keep);
+      ui.log.success("Deleted history; kept latest");
+      return await reportsController({ ...props, intro: false });
+    }
+
+    // view runs
+    const primaryDir = Array.from(proj.projectDirs).find((d) =>
+      d.includes(path.join(conf.archivesDir, "projects"))
+    );
+    const broken = await findBrokenRunDirs(primaryDir || Array.from(proj.projectDirs)[0] || conf.archivesDir);
+    const runOptions = proj.runs
+      .sort((a, b) => (a.meta.createdAt < b.meta.createdAt ? 1 : -1))
+      .slice(0, limit)
+      .map((r) => {
+        const run = formatRun(r.meta.runId);
+        const time = formatTime(r.meta.createdAt);
+        return {
+          value: r.reportPath,
+          label: `run:${run}  ${time}`,
+          hint: shortenMiddle(relativePath(conf.archivesDir, r.reportPath), 90),
+        };
+      });
     for (const b of broken) {
-      options.push({
+      runOptions.push({
         value: `broken::${b.dir}`,
         label: `[broken] ${shortenMiddle(relativePath(conf.archivesDir, b.dir), 70)}`,
         hint: `meta: ${shortenMiddle(relativePath(conf.archivesDir, b.metaPath), 60)}`,
       });
     }
-
     const chosen = await selectWithBack<string>({
-      message: act === "view" ? "Pick one to preview" : act === "cat" ? "Pick one to print to stdout" : "Pick one to view",
-      options,
+      message: "Pick one to preview",
+      options: runOptions,
     });
-    if (!chosen || chosen === BACK_VALUE) return; // back to caller
-
+    if (!chosen || chosen === BACK_VALUE) continue;
     if (chosen.startsWith("broken::")) {
       const dir = chosen.slice("broken::".length);
       const ok = await maybeDeleteBrokenPath({ targetPath: dir, isDir: true, reason: "Invalid meta.json or missing report.md" });
-      if (ok) {
-        // refresh lists
-        return await reportsController({ ...props, intro: false });
-      }
-      // stay in loop to let user pick again
+      if (ok) return await reportsController({ ...props, intro: false });
       continue;
     }
-
-    if (act === "cat") {
-      const txt = await fs.readFile(chosen, "utf-8");
-      process.stdout.write(txt);
-      return;
-    }
-
     const server = await serveReportOnce({ reportPath: chosen, title: "litewiki report" });
     ui.outro(`Opened in browser: ${server.url}\nPress Ctrl+C to exit preview`);
     const cleanup = () => {
