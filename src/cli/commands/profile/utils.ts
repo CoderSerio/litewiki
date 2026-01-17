@@ -41,7 +41,9 @@ export async function loadProfileFromFile(
   const json = JSON.parse(raw);
   const parsed = ProfileSchema.parse(json);
 
-  return { ...parsed, source: "file", filePath } as LoadedProfile;
+  const source = parsed.id === DEFAULT_PROFILE.id ? "builtin" : "file";
+
+  return { ...parsed, source, filePath } as LoadedProfile;
 }
 
 export async function listProfiles(

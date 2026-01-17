@@ -26,6 +26,16 @@ export type AgentTools = {
       call: AnyToolCall;
     }): Promise<void>;
   };
+  renderMermaid: {
+    meta: any;
+    handler(props: {
+      toolResults: ToolResult[];
+      args: Record<string, any>;
+      messages: AnyMessage[];
+      cwd: string;
+      call: AnyToolCall;
+    }): Promise<void>;
+  };
 };
 
 export async function runAgent(props: {

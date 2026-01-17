@@ -1,4 +1,4 @@
-import { listDirectoryTool, readFileTool } from "../tools/index.js";
+import { listDirectoryTool, readFileTool, renderMermaidTool } from "../tools/index.js";
 import { createSiliconFlowClient } from "../siliconflowClient.js";
 import { runAgent } from "../run.js";
 
@@ -35,6 +35,7 @@ export async function runDeepWikiAgent(
     tools: {
       listDirectory: typeof listDirectoryTool;
       readFile: typeof readFileTool;
+      renderMermaid: typeof renderMermaidTool;
     };
   } = {
     cwd,
@@ -44,6 +45,7 @@ export async function runDeepWikiAgent(
     tools: {
       listDirectory: listDirectoryTool,
       readFile: readFileTool,
+      renderMermaid: renderMermaidTool,
     },
   };
 
