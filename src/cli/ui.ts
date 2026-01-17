@@ -8,7 +8,7 @@ export function outro(message: string) {
   p.outro(message);
 }
 
-export function cancel(message = "已取消") {
+export function cancel(message = "Canceled") {
   p.cancel(message);
 }
 

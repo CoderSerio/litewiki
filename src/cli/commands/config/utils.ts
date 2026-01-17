@@ -59,23 +59,23 @@ export async function editConfig(configDir: string) {
 
   // 直接显示配置项列表，选中即可编辑
   const selected = await ui.select<keyof Config | "done">({
-    message: "选择配置项编辑（或完成）",
+    message: "Pick a field to edit (or Done)",
     options: [
-      { value: "provider", label: `provider: ${config.provider || "(空)"}` },
-      { value: "model", label: `model: ${config.model || "(空)"}` },
-      { value: "key", label: `key: ${config.key || "(空)"}` },
-      { value: "done", label: "✓ 完成" },
+      { value: "provider", label: `provider: ${config.provider || "(empty)"}` },
+      { value: "model", label: `model: ${config.model || "(empty)"}` },
+      { value: "key", label: `key: ${config.key || "(empty)"}` },
+      { value: "done", label: "✓ Done" },
     ],
   });
 
   if (!selected || selected === "done") return;
 
-  const newValue = await ui.text(`输入新的 ${selected}`, config[selected]);
+  const newValue = await ui.text(`New ${selected}`, config[selected]);
   if (newValue === null) return;
 
   config[selected] = newValue;
   await saveConfig(configDir, config);
-  ui.log.success(`已更新 ${selected}`);
+  ui.log.success(`Updated ${selected}`);
 
   // 递归继续编辑
   await editConfig(configDir);

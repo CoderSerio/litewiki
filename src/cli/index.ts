@@ -6,13 +6,14 @@ import {
 } from "./commands/profile/index.js";
 import { registerReportsCommand, reportsCmd } from "./commands/report/index.js";
 import * as ui from "./ui.js";
-import { configCmd } from "./commands/config/index.js";
+import { configCmd, registerConfigCommand } from "./commands/config/index.js";
 
-type RootAction = "run" | "profile" | "report" | "config" | "help" | "profile";
+type RootAction = "run" | "profile" | "report" | "config" | "help";
 
 const ActionMap: Record<RootAction, (cli: CAC) => void> = {
   run: (_) => {
-    profilesCmd({ intro: false });
+    // interactive entry should trigger run flow directly
+    runCmd({ intro: false });
   },
   profile: (_) => {
     profilesCmd({ intro: false });
@@ -35,11 +36,12 @@ export async function cliMain(argv: string[]) {
   registerRunCommand(cli);
   registerProfilesCommand(cli);
   registerReportsCommand(cli);
+  registerConfigCommand?.(cli);
 
   cli.on("command:*", () => {
     ui.intro("litewiki");
     cli.outputHelp();
-    ui.outro("未知命令");
+    ui.outro("Unknown command");
     process.exitCode = 1;
   });
 
@@ -49,13 +51,13 @@ export async function cliMain(argv: string[]) {
   if (argv.length <= 2) {
     ui.intro("litewiki");
     const action = await ui.select<RootAction>({
-      message: "选择操作",
+      message: "Select an action",
       options: [
-        { value: "run", label: "run", hint: "分析一个目录" },
-        { value: "report", label: "report", hint: "查看已生成报告" },
-        { value: "help", label: "help", hint: "查看所有命令" },
-        { value: "config", label: "config", hint: "系统配置" },
-        { value: "profile", label: "profile", hint: "管理提示词" },
+        { value: "run", label: "run", hint: "Analyze a directory" },
+        { value: "report", label: "report", hint: "View archived reports" },
+        { value: "profile", label: "profile", hint: "Manage prompt profiles" },
+        { value: "config", label: "config", hint: "System configuration" },
+        { value: "help", label: "help", hint: "Show all commands" },
         // { value: "config", label: "config", hint: "系统配置" },
         // It seems stupid if we supply a exit option in a CLI tool.
         // WHY DO NOT JUST USE CTRL+C TO EXIT

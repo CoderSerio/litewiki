@@ -9,6 +9,7 @@ const StoreSchema = z.object({
   configDir: z.string(),
   defaultProfileId: z.string(),
   lastProfileId: z.string().optional(),
+  activeConfigId: z.string().optional(),
 });
 
 export type StoreData = z.infer<typeof StoreSchema>;

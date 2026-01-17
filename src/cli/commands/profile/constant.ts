@@ -8,7 +8,7 @@ export type PromptProfile = {
   outputFormat: OutputFormat;
 };
 
-export const defaultProfile: PromptProfile = {
+export const DEFAULT_PROFILE: PromptProfile = {
   id: "default",
   version: 1,
   outputFormat: "markdown",

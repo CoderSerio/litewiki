@@ -1,13 +1,24 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { defaultProfile, type PromptProfile } from "./constant.js";
+import { DEFAULT_PROFILE, type PromptProfile } from "./constant.js";
 import { ensureDir } from "../../../utils/fs.js";
 import * as ui from "../../ui.js";
+import { selectWithBack, BACK_VALUE } from "../../core/ui.js";
 import { shortenMiddle } from "../../../utils/format.js";
 
+const RESERVED_IDS = new Set(["undefined", "null", "default"]);
+const ProfileIdSchema = z
+  .string()
+  .min(1, "id must not be empty")
+  .max(64, "id too long (max 64)")
+  .regex(/^[a-zA-Z0-9._-]+$/, "id can only contain letters, digits, dot, underscore, and hyphen")
+  .refine((id) => !RESERVED_IDS.has(id.toLowerCase()), {
+    message: "id is a reserved word (undefined/null/default)",
+  });
+
 const ProfileSchema = z.object({
-  id: z.string().min(1),
+  id: ProfileIdSchema,
   version: z.number().int().positive(),
   systemPrompt: z.string().min(1),
   extensions: z.array(z.string()).optional(),
@@ -39,7 +50,7 @@ export async function listProfiles(
   const items = await fs
     .readdir(profilesDir, { withFileTypes: true })
     .catch(() => []);
-  const results: LoadedProfile[] = [{ ...defaultProfile, source: "builtin" }];
+  const results: LoadedProfile[] = [{ ...DEFAULT_PROFILE, source: "builtin" }];
 
   for (const it of items) {
     if (!it.isFile()) continue;
@@ -64,7 +75,7 @@ export async function getProfileById(
   profilesDir: string,
   id: string
 ): Promise<LoadedProfile | null> {
-  if (id === defaultProfile.id) return { ...defaultProfile, source: "builtin" };
+  if (id === DEFAULT_PROFILE.id) return { ...DEFAULT_PROFILE, source: "builtin" };
   const fp = profileFilePath(profilesDir, id);
   try {
     return await loadProfileFromFile(fp);
@@ -82,9 +93,9 @@ export async function writeProfileFile(
   await fs.writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
 
-/** 查看 builtin profile（只读） */
+/** View builtin profile (readonly) */
 export async function viewProfile(profile: LoadedProfile): Promise<void> {
-  ui.log.info(`[只读] ${profile.id}`);
+  ui.log.info(`[readonly] ${profile.id}`);
   ui.log.message(`version: ${profile.version}`);
   ui.log.message(`outputFormat: ${profile.outputFormat}`);
   ui.log.message(`systemPrompt:\n${profile.systemPrompt}`);
@@ -95,27 +106,32 @@ export async function viewProfile(profile: LoadedProfile): Promise<void> {
   }
 }
 
-/** 创建新 profile */
+/** Create a new profile */
 export async function createProfile(profilesDir: string): Promise<void> {
-  const id = await ui.text("新 profile 的 id");
+  const id = await ui.text("New profile id");
   if (!id) return;
 
-  // 检查是否已存在
+  // Check if exists
   const fp = profileFilePath(profilesDir, id);
   const exists = await fs.stat(fp).catch(() => false);
   if (exists) {
-    ui.log.error(`已存在: ${id}`);
+    ui.log.error(`Already exists: ${id}`);
     return;
   }
 
-  // 基于 default 创建
+  // Create based on default
   const newProfile: PromptProfile = {
-    ...defaultProfile,
+    ...DEFAULT_PROFILE,
     id,
   };
 
-  await writeProfileFile(fp, newProfile);
-  ui.log.success(`已创建: ${fp}`);
+  try {
+    await writeProfileFile(fp, newProfile);
+  } catch (e: any) {
+    ui.log.error(`Create failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`);
+    return;
+  }
+  ui.log.success(`Created: ${fp}`);
 
   // 进入编辑
   const loaded = await loadProfileFromFile(fp);
@@ -124,16 +140,16 @@ export async function createProfile(profilesDir: string): Promise<void> {
 
 type EditableField = "id" | "version" | "systemPrompt" | "extensions" | "done";
 
-/** 编辑自定义 profile */
+/** Edit a custom profile */
 export async function editProfile(
   profilesDir: string,
   profile: LoadedProfile
 ): Promise<void> {
   const filePath = profile.filePath!;
 
-  // 显示所有字段
-  const selected = await ui.select<EditableField>({
-    message: `编辑 ${profile.id}`,
+  // Show all fields
+  const selected = await selectWithBack<EditableField>({
+    message: `Edit ${profile.id}`,
     options: [
       { value: "id", label: `id: ${profile.id}` },
       { value: "version", label: `version: ${profile.version}` },
@@ -143,27 +159,50 @@ export async function editProfile(
       },
       {
         value: "extensions",
-        label: `extensions: ${profile.extensions?.length || 0} 条`,
+        label: `extensions: ${profile.extensions?.length || 0} items`,
       },
-      { value: "done", label: "✓ 完成" },
+      { value: "done", label: "✓ Done" },
     ],
   });
 
-  if (!selected || selected === "done") return;
+  if (!selected || selected === BACK_VALUE || selected === "done") return;
 
   if (selected === "id") {
-    const newId = await ui.text("输入新的 id", profile.id);
+    const newId = await ui.text("New id", profile.id);
     if (!newId || newId === profile.id) {
       await editProfile(profilesDir, profile);
       return;
     }
 
-    // 重命名文件
+    // Validate new id
+    try {
+      ProfileIdSchema.parse(newId);
+    } catch (e: any) {
+      ui.log.error(String(e?.errors?.[0]?.message || e?.message || e));
+      await editProfile(profilesDir, profile);
+      return;
+    }
+
+    // Do not overwrite existing file
     const newPath = profileFilePath(profilesDir, newId);
+    const exists = await fs.stat(newPath).then(() => true).catch(() => false);
+    if (exists) {
+      ui.log.error(`Already exists: ${newId}`);
+      await editProfile(profilesDir, profile);
+      return;
+    }
+
+    // Rename file
     const updatedProfile: PromptProfile = { ...profile, id: newId };
-    await writeProfileFile(newPath, updatedProfile);
-    await fs.unlink(filePath);
-    ui.log.success(`已重命名为 ${newId}`);
+    try {
+      await writeProfileFile(newPath, updatedProfile);
+      await fs.unlink(filePath);
+      ui.log.success(`Renamed to ${newId}`);
+    } catch (e: any) {
+      ui.log.error(`Rename failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`);
+      await editProfile(profilesDir, profile);
+      return;
+    }
 
     await editProfile(profilesDir, {
       ...updatedProfile,
@@ -175,7 +214,7 @@ export async function editProfile(
 
   if (selected === "version") {
     const newVersion = await ui.text(
-      "输入新的 version",
+      "New version",
       String(profile.version)
     );
     if (!newVersion) {
@@ -185,23 +224,23 @@ export async function editProfile(
 
     const v = parseInt(newVersion, 10);
     if (isNaN(v) || v < 1) {
-      ui.log.error("version 必须是正整数");
+      ui.log.error("version must be a positive integer");
       await editProfile(profilesDir, profile);
       return;
     }
 
     profile.version = v;
     await writeProfileFile(filePath, profile);
-    ui.log.success("已更新 version");
+    ui.log.success("Updated version");
     await editProfile(profilesDir, profile);
     return;
   }
 
   if (selected === "systemPrompt") {
-    ui.log.info("当前 systemPrompt:");
+    ui.log.info("Current systemPrompt:");
     ui.log.message(profile.systemPrompt);
 
-    const newPrompt = await ui.text("输入新的 systemPrompt（留空取消）");
+    const newPrompt = await ui.text("New systemPrompt (leave empty to cancel)");
     if (!newPrompt) {
       await editProfile(profilesDir, profile);
       return;
@@ -209,46 +248,45 @@ export async function editProfile(
 
     profile.systemPrompt = newPrompt;
     await writeProfileFile(filePath, profile);
-    ui.log.success("已更新 systemPrompt");
+    ui.log.success("Updated systemPrompt");
     await editProfile(profilesDir, profile);
     return;
   }
 
   if (selected === "extensions") {
-    ui.log.info("当前 extensions:");
+    ui.log.info("Current extensions:");
     if (profile.extensions?.length) {
       profile.extensions.forEach((e, i) => ui.log.message(`  ${i + 1}. ${e}`));
     } else {
-      ui.log.message("  (空)");
+      ui.log.message("  (empty)");
     }
 
-    const action = await ui.select<"add" | "clear" | "back">({
-      message: "操作",
+    const action = await selectWithBack<"add" | "clear">({
+      message: "Action",
       options: [
-        { value: "add", label: "添加一条" },
-        { value: "clear", label: "清空全部" },
-        { value: "back", label: "← 返回" },
+        { value: "add", label: "Add one" },
+        { value: "clear", label: "Clear all" },
       ],
     });
 
-    if (!action || action === "back") {
+    if (!action || action === BACK_VALUE) {
       await editProfile(profilesDir, profile);
       return;
     }
 
     if (action === "add") {
-      const ext = await ui.text("输入新的 extension");
+      const ext = await ui.text("New extension");
       if (ext) {
         profile.extensions = [...(profile.extensions || []), ext];
         await writeProfileFile(filePath, profile);
-        ui.log.success("已添加");
+        ui.log.success("Added");
       }
     }
 
     if (action === "clear") {
       profile.extensions = [];
       await writeProfileFile(filePath, profile);
-      ui.log.success("已清空");
+      ui.log.success("Cleared");
     }
 
     await editProfile(profilesDir, profile);

@@ -1,6 +1,6 @@
-import { listDirectoryTool, readFileTool } from "./tools/index.js";
-import { createSiliconFlowClient } from "./siliconflowClient.js";
-import { runAgent } from "./run.js";
+import { listDirectoryTool, readFileTool } from "../tools/index.js";
+import { createSiliconFlowClient } from "../siliconflowClient.js";
+import { runAgent } from "../run.js";
 
 const DEFAULT_BASE_URL = "https://api.siliconflow.cn/v1/chat/completions";
 const DEFAULT_MODEL = "Pro/zai-org/GLM-4.7";
@@ -11,13 +11,17 @@ export async function runDeepWikiAgent(
     systemPrompt?: string;
     extensions?: string[];
     priorReport?: string;
+    // overrides from selected config
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
   }
 ) {
-  const apiKey = process.env.SILICONFLOW_API_KEY;
+  const apiKey = opts?.apiKey || process.env.SILICONFLOW_API_KEY;
   if (!apiKey) throw new Error("SILICONFLOW_API_KEY is not set ❌");
 
-  const baseUrl = process.env.SILICONFLOW_BASE_URL || DEFAULT_BASE_URL;
-  const model = process.env.SILICONFLOW_MODEL || DEFAULT_MODEL;
+  const baseUrl = opts?.baseUrl || process.env.SILICONFLOW_BASE_URL || DEFAULT_BASE_URL;
+  const model = opts?.model || process.env.SILICONFLOW_MODEL || DEFAULT_MODEL;
 
   const client = createSiliconFlowClient({ apiKey, baseUrl });
 
@@ -53,3 +57,4 @@ export async function runDeepWikiAgent(
 
   return await runAgent(agentArgs as any);
 }
+

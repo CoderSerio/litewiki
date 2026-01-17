@@ -1,14 +1,14 @@
-import { createConfigStore } from "../../../config/store.js";
-import { ensureDir } from "../../../utils/fs.js";
 import * as ui from "../../ui.js";
-import { editConfig } from "./utils.js";
+import { configController } from "../../controllers/configController.js";
 
 export async function configCmd(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
-  const store = createConfigStore();
-  const conf = store.readAll();
-  await ensureDir(conf.configDir);
+  // Delegate to new multi-config controller
+  await configController({ intro: false });
+}
 
-  // 直接进入编辑模式
-  await editConfig(conf.configDir);
+export function registerConfigCommand(cli: any) {
+  cli.command("config", "Manage API configs").action(async () => {
+    await configCmd({ intro: true });
+  });
 }
