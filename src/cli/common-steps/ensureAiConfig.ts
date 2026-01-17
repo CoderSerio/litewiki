@@ -1,19 +1,29 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
 import { createConfigStore } from "../../config/store.js";
 import { ensureDir } from "../../utils/fs.js";
 import {
+  ConfigSchema,
   getActiveConfigId,
   listConfigs,
   migrateLegacyConfigIfNeeded,
   type ConfigItem,
 } from "../../services/configService.js";
 import { configController } from "../controllers/configController.js";
+import { relativePath, shortenMiddle } from "../../utils/format.js";
+import { maybeDeleteBrokenPath } from "./fileOps.js";
+import {
+  BUILTIN_CONFIG_ID,
+  getBuiltinDefaultConfig,
+  getBuiltinDefaultConfigStatus,
+} from "./aiConfigDefaults.js";
 
 export type AiConfigLike = {
   provider: string;
   model: string;
   key: string;
-  baseUrl?: string;
+  baseUrl?: string | undefined;
 };
 
 export async function ensureAiConfig(): Promise<AiConfigLike | null> {
@@ -21,9 +31,15 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
   const conf = store.readAll();
   await ensureDir(conf.configDir);
   await migrateLegacyConfigIfNeeded(conf.configDir);
+  let shownNoConfigHint = false;
 
-  const pickActive = async (): Promise<ConfigItem | null> => {
+  const pickActive = async (): Promise<AiConfigLike | null> => {
     const active = getActiveConfigId();
+    if (active === BUILTIN_CONFIG_ID) {
+      const builtin = getBuiltinDefaultConfig();
+      if (!builtin) return null;
+      return builtin;
+    }
     if (!active) return null;
     const all = await listConfigs(conf.configDir);
     const found = all.find((c) => c.id === active);
@@ -34,31 +50,123 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
 
   const ready = await pickActive();
   if (ready) return ready;
-
-  const choice = await selectWithBack<"manage" | "temp">({
-    message: "No valid config. How to continue?",
-    options: [
-      { value: "manage", label: "Open config manager (pick/create and activate)" },
-      { value: "temp", label: "Input once (do not save)" },
-    ],
-  });
-  if (!choice || choice === BACK_VALUE) return null;
-
-  if (choice === "manage") {
-    await configController({ intro: true });
-    const again = await pickActive();
-    if (again) return again;
-    // still not ready
-    ui.log.warn("No valid active config found");
-    return null;
+  const builtinStatus = getBuiltinDefaultConfigStatus();
+  if (builtinStatus.config) {
+    const all = await listConfigs(conf.configDir);
+    if (all.length === 0) return builtinStatus.config;
   }
 
-  // temp
-  const provider = (await ui.text("provider", process.env.SILICONFLOW_API_KEY ? "siliconflow" : "")) || "siliconflow";
-  const model = await ui.text("model", process.env.SILICONFLOW_MODEL || "");
-  if (!model) return null;
-  const key = await ui.text("key", process.env.SILICONFLOW_API_KEY || "");
-  if (!key) return null;
-  const baseUrl = await ui.text("baseUrl (optional)", process.env.SILICONFLOW_BASE_URL || "");
-  return { provider, model, key, baseUrl: baseUrl || undefined };
+  // helper: list broken config files (json files that are not parsed by listConfigs)
+  const listBrokenConfigs = async () => {
+    const all = await listConfigs(conf.configDir);
+    const ents = await fs.readdir(conf.configDir, { withFileTypes: true }).catch(() => []);
+    const broken: { id: string; filePath: string; error?: string }[] = [];
+    for (const it of ents) {
+      if (!it.isFile() || !it.name.endsWith(".json")) continue;
+      const fp = path.join(conf.configDir, it.name);
+      const found = all.find((i) => i.filePath === fp);
+      if (!found) {
+        let id = path.basename(it.name, ".json");
+        try {
+          const raw = JSON.parse(await fs.readFile(fp, "utf-8"));
+          if (typeof raw?.id === "string" && raw.id.trim()) id = raw.id.trim();
+          try {
+            ConfigSchema.parse({ ...raw, id });
+          } catch (e) {
+            broken.push({ id, filePath: fp, error: String(e) });
+            continue;
+          }
+        } catch (e) {
+          // keep fallback id from filename
+          broken.push({ id, filePath: fp, error: String(e) });
+          continue;
+        }
+        broken.push({ id, filePath: fp });
+      }
+    }
+    return broken;
+  };
+
+  // selection loop until user provides a config or cancels
+  while (true) {
+    const brokenSummary = await listBrokenConfigs();
+    const brokenWithError = brokenSummary.filter((b) => b.error);
+    for (const it of brokenWithError) {
+      ui.log.error(`Broken config JSON: ${it.filePath}\n${it.error}`);
+    }
+    const validConfigs = await listConfigs(conf.configDir);
+    if (validConfigs.length === 0 && brokenSummary.length === 0 && !shownNoConfigHint) {
+      if (!builtinStatus.config && builtinStatus.missing.length > 0) {
+        ui.log.error(`Builtin default unavailable (missing env: ${builtinStatus.missing.join(", ")})`);
+      }
+      ui.log.info("No config files found");
+      ui.log.info(`Configs dir: ${conf.configDir}`);
+      ui.log.info(`Profiles dir: ${conf.profilesDir}`);
+      shownNoConfigHint = true;
+    }
+    const choice = await selectWithBack<"manage" | "temp" | "clean">({
+      message: "No valid config. How to continue?",
+      options: [
+        { value: "manage", label: "Open config manager (pick/create and activate)" },
+        { value: "temp", label: "Input once (do not save)" },
+        { value: "clean", label: "Delete invalid configs" },
+      ],
+    });
+    if (!choice || choice === BACK_VALUE) return null;
+
+    if (choice === "manage") {
+      await configController({ intro: true });
+      const again = await pickActive();
+      if (again) return again;
+      // still not ready; loop again
+      continue;
+    }
+
+    if (choice === "clean") {
+      while (true) {
+        const broken = await listBrokenConfigs();
+        if (broken.length === 0) {
+          ui.log.info("No invalid configs found");
+          break;
+        }
+        if (broken.length === 1) {
+          const only = broken[0];
+          if (!only) break;
+          await maybeDeleteBrokenPath({
+            targetPath: only.filePath,
+            reason: "Invalid or unparsable config JSON",
+          });
+          continue;
+        }
+        const pick = await selectWithBack<string>({
+          message: "Pick a broken config to delete",
+          options: broken.map((b) => ({
+            value: b.filePath,
+            label: `[broken] ${b.id}`,
+            hint: shortenMiddle(relativePath(conf.configDir, b.filePath), 60),
+          })),
+        });
+        if (!pick || pick === BACK_VALUE) break;
+        await maybeDeleteBrokenPath({ targetPath: pick, reason: "Invalid or unparsable config JSON" });
+      }
+      const again = await pickActive();
+      if (again) return again;
+      const rebuild = await ui.confirm("No valid configs remain. Open config manager to create one?", true);
+      if (rebuild) {
+        await configController({ intro: true });
+        const after = await pickActive();
+        if (after) return after;
+      }
+      return null;
+    }
+
+    // temp
+    const provider = (await ui.text("provider", process.env.SILICONFLOW_API_KEY ? "siliconflow" : "")) || "siliconflow";
+    const model = await ui.text("model", process.env.SILICONFLOW_MODEL || "");
+    if (!model) return null;
+    const key = await ui.text("key", process.env.SILICONFLOW_API_KEY || "");
+    if (!key) return null;
+    const baseUrl = await ui.text("baseUrl (optional)", process.env.SILICONFLOW_BASE_URL || "");
+    return { provider, model, key, baseUrl: baseUrl || undefined };
+  }
 }

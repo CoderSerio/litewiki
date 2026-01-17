@@ -7,6 +7,7 @@ import { computeRepoKey, findGitRoot, getGitRemoteOriginUrl } from "../../utils/
 import { relativePath, shortHash, shortenMiddle } from "../../utils/format.js";
 import { serveReportOnce } from "../../view/server.js";
 import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
+import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
 
 export type ReportsAction = "view" | "cat";
 
@@ -63,8 +64,38 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
   }
 
   const limit = Number.isFinite(props.limit as any) ? (props.limit as number) : 20;
+  async function findBrokenRunDirs(archivesDir: string, repoKey?: string): Promise<{ dir: string; metaPath: string; reportPath: string }[]> {
+    const broken: { dir: string; metaPath: string; reportPath: string }[] = [];
+    async function scanUnder(dir: string) {
+      const items = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+      for (const it of items) {
+        if (!it.isDirectory()) continue;
+        const runDirPath = path.join(dir, it.name);
+        const metaPath = path.join(runDirPath, "meta.json");
+        const reportPath = path.join(runDirPath, "report.md");
+        try {
+          const raw = await fs.readFile(metaPath, "utf-8");
+          const meta = JSON.parse(raw);
+          // minimal validity: must have runId
+          if (!meta || typeof meta.runId !== "string") throw new Error("invalid meta");
+          // treat missing report.md as broken as well
+          await fs.stat(reportPath);
+        } catch {
+          broken.push({ dir: runDirPath, metaPath, reportPath });
+        }
+      }
+    }
+    if (repoKey) await scanUnder(path.join(archivesDir, repoKey));
+    else {
+      const repos = await fs.readdir(archivesDir, { withFileTypes: true }).catch(() => []);
+      for (const r of repos) if (r.isDirectory()) await scanUnder(path.join(archivesDir, r.name));
+    }
+    return broken;
+  }
+
   const runs = (await listRuns(conf.archivesDir, repoKey)).slice(0, limit);
-  if (runs.length === 0) {
+  const broken = await findBrokenRunDirs(conf.archivesDir, repoKey);
+  if (runs.length === 0 && broken.length === 0) {
     ui.outro("No archived reports found");
     return;
   }
@@ -86,11 +117,31 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
       };
     });
 
+    // append broken entries
+    for (const b of broken) {
+      options.push({
+        value: `broken::${b.dir}`,
+        label: `[broken] ${shortenMiddle(relativePath(conf.archivesDir, b.dir), 70)}`,
+        hint: `meta: ${shortenMiddle(relativePath(conf.archivesDir, b.metaPath), 60)}`,
+      });
+    }
+
     const chosen = await selectWithBack<string>({
       message: act === "view" ? "Pick one to preview" : act === "cat" ? "Pick one to print to stdout" : "Pick one to view",
       options,
     });
     if (!chosen || chosen === BACK_VALUE) return; // back to caller
+
+    if (chosen.startsWith("broken::")) {
+      const dir = chosen.slice("broken::".length);
+      const ok = await maybeDeleteBrokenPath({ targetPath: dir, isDir: true, reason: "Invalid meta.json or missing report.md" });
+      if (ok) {
+        // refresh lists
+        return await reportsController({ ...props, intro: false });
+      }
+      // stay in loop to let user pick again
+      continue;
+    }
 
     if (act === "cat") {
       const txt = await fs.readFile(chosen, "utf-8");

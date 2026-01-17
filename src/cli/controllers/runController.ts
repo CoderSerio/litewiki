@@ -9,13 +9,13 @@ import { selectWithBack, BACK_VALUE } from "../core/ui.js";
 import { pickDirectory } from "../common-steps/pickDirectory.js";
 import { pickProfileId } from "../common-steps/pickProfile.js";
 import { pickRunMode } from "../common-steps/pickRunMode.js";
-import { ensureAiConfig } from "../common-steps/ensureAiConfig.js";
+import { ensureAiConfig, type AiConfigLike } from "../common-steps/ensureAiConfig.js";
 import { runDeepWikiAgent } from "../../agent/providers/index.js";
 import { runFlow, next, back, exit } from "../core/flow.js";
 
 type RunCtx = {
-  dirArg?: string;
-  profileArg?: string;
+  dirArg: string | undefined;
+  profileArg: string | undefined;
   // gathered
   targetDir?: string;
   repoRoot?: string | null;
@@ -24,7 +24,7 @@ type RunCtx = {
   remote?: string | null;
   repoKey?: string;
   profileId?: string;
-  aiConfig?: { provider: string; model: string; key: string; baseUrl?: string };
+  aiConfig?: AiConfigLike;
   mode?: "fresh" | "incremental";
   priorReport?: string | null;
 };

@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
 import { ui } from "../core/ui.js";
@@ -7,9 +9,11 @@ import {
   viewProfile,
   createProfile,
   editProfile,
+  ensureDefaultProfileFile,
   type LoadedProfile,
 } from "../commands/profile/utils.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
+import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
 
 export async function profilesController(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
@@ -17,6 +21,8 @@ export async function profilesController(props: { intro?: boolean }) {
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.profilesDir);
+  // If there are no profile files, bootstrap a default one
+  await ensureDefaultProfileFile(conf.profilesDir);
 
   type Ctx = { chosen?: string | "__new__"; profile?: LoadedProfile };
   const ctx: Ctx = {};
@@ -24,6 +30,25 @@ export async function profilesController(props: { intro?: boolean }) {
   async function listStep(): Promise<"list" | "create" | "detail" | "exit"> {
     const list = await listProfiles(conf.profilesDir);
     const good = list.filter((p) => p.id !== "undefined" && p.id !== "null");
+
+    // find broken .json files that failed to parse
+    const ents = await fs.readdir(conf.profilesDir, { withFileTypes: true }).catch(() => []);
+    const broken: { id: string; filePath: string }[] = [];
+    for (const it of ents) {
+      if (!it.isFile() || !it.name.endsWith(".json")) continue;
+      const fp = path.join(conf.profilesDir, it.name);
+      const already = good.find((p) => p.filePath === fp);
+      if (already) continue;
+      try {
+        // try parse; if parse succeeds but wasn't in good, treat as good (rare)
+        // we won't push to good here to avoid duplication; treat as broken by default
+        await fs.readFile(fp, "utf-8").then((r) => JSON.parse(r));
+        // still treat as broken, because shape may be invalid
+      } catch {
+        // parse error -> broken
+      }
+      broken.push({ id: path.basename(it.name, ".json"), filePath: fp });
+    }
 
     const options: { value: string; label: string; hint?: string }[] = [
       ...good.map((p) => ({
@@ -33,6 +58,11 @@ export async function profilesController(props: { intro?: boolean }) {
           p.id === "default" || p.source === "builtin"
             ? "readonly"
             : shortenMiddle(relativePath(conf.profilesDir, p.filePath || ""), 60),
+      })),
+      ...broken.map((b) => ({
+        value: `broken::${b.filePath}`,
+        label: `[broken] ${b.id}`,
+        hint: shortenMiddle(relativePath(conf.profilesDir, b.filePath), 60),
       })),
       { value: "__new__", label: "+ New profile" },
     ];
@@ -46,6 +76,15 @@ export async function profilesController(props: { intro?: boolean }) {
     if (chosen === "__new__") {
       ctx.chosen = "__new__";
       return "create";
+    }
+    if (chosen.startsWith("broken::")) {
+      const fp = chosen.slice("broken::".length);
+      const deleted = await maybeDeleteBrokenPath({ targetPath: fp, reason: "Invalid or unparsable profile JSON" });
+      if (deleted) {
+        // if no profile files left, recreate default
+        await ensureDefaultProfileFile(conf.profilesDir);
+      }
+      return "list"; // refresh list
     }
     const profile = good.find((p) => p.id === chosen);
     if (!profile) return "list";

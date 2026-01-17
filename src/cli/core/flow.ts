@@ -24,7 +24,12 @@ export async function runFlow<Ctx>(steps: Step<Ctx>[], ctx: Ctx, start = 0) {
   // Linear index with back support to ensure strict tree-like traversal.
   let idx = start;
   while (idx >= 0 && idx < steps.length) {
-    const r = await steps[idx](ctx);
+    const step = steps[idx];
+    if (!step) {
+      idx += 1;
+      continue;
+    }
+    const r = await step(ctx);
     if (r.type === "exit") return;
     if (r.type === "back") {
       idx -= 1; // go to previous step (parent)

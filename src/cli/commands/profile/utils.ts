@@ -93,6 +93,16 @@ export async function writeProfileFile(
   await fs.writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
 
+/** Ensure there's at least one profile file; if none, create default.json */
+export async function ensureDefaultProfileFile(profilesDir: string): Promise<string | null> {
+  const ents = await fs.readdir(profilesDir, { withFileTypes: true }).catch(() => []);
+  const hasAny = ents.some((e) => e.isFile() && e.name.endsWith(".json"));
+  if (hasAny) return null;
+  const fp = profileFilePath(profilesDir, DEFAULT_PROFILE.id);
+  await writeProfileFile(fp, DEFAULT_PROFILE);
+  return fp;
+}
+
 /** View builtin profile (readonly) */
 export async function viewProfile(profile: LoadedProfile): Promise<void> {
   ui.log.info(`[readonly] ${profile.id}`);

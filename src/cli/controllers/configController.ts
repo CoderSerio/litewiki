@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { ui } from "../core/ui.js";
 import { selectWithBack, BACK_VALUE } from "../core/ui.js";
 import {
@@ -12,6 +14,12 @@ import {
 import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
+import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
+import {
+  BUILTIN_CONFIG_ID,
+  getBuiltinDefaultConfig,
+  getBuiltinDefaultConfigStatus,
+} from "../common-steps/aiConfigDefaults.js";
 
 export async function configController(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
@@ -24,6 +32,17 @@ export async function configController(props: { intro?: boolean }) {
   while (true) {
     const activeId = getActiveConfigId();
     const items = await listConfigs(conf.configDir);
+    const builtin = getBuiltinDefaultConfig();
+    const builtinStatus = getBuiltinDefaultConfigStatus();
+    // find broken config .json files not parsed by listConfigs
+    const ents = await fs.readdir(conf.configDir, { withFileTypes: true }).catch(() => []);
+    const broken: { id: string; filePath: string }[] = [];
+    for (const it of ents) {
+      if (!it.isFile() || !it.name.endsWith(".json")) continue;
+      const fp = path.join(conf.configDir, it.name);
+      const found = items.find((i) => i.filePath === fp);
+      if (!found) broken.push({ id: path.basename(it.name, ".json"), filePath: fp });
+    }
     const opts = items.map((c) => ({
       value: c.id,
       label: c.id === activeId ? `${c.id} (active)` : c.id,
@@ -31,18 +50,68 @@ export async function configController(props: { intro?: boolean }) {
     }));
     const chosen = await selectWithBack<string>({
       message: "Configs",
-      options: [...opts, { value: "__new__", label: "+ New" } as any],
+      options: [
+        {
+          value: BUILTIN_CONFIG_ID,
+          label:
+            activeId === BUILTIN_CONFIG_ID
+              ? "default (builtin, active)"
+              : "default (builtin)",
+          hint: builtin ? "from env" : `missing env: ${builtinStatus.missing.join(", ")}`,
+        },
+        ...opts,
+        ...broken.map((b) => ({
+          value: `broken::${b.filePath}`,
+          label: `[broken] ${b.id}`,
+          hint: shortenMiddle(relativePath(conf.configDir, b.filePath), 60),
+        })),
+        { value: "__new__", label: "+ New" } as any,
+      ],
     });
     if (chosen === null) return; // cancel
     if (chosen === BACK_VALUE) return; // back to root
-    if (chosen === "__new__") {
+    const value = chosen as string;
+    if (value.startsWith("broken::")) {
+      const fp = value.slice("broken::".length);
+      await maybeDeleteBrokenPath({ targetPath: fp, reason: "Invalid or unparsable config JSON" });
+      continue; // refresh
+    }
+    if (value === "__new__") {
       await createNewConfigFlow(conf.configDir);
       continue;
     }
-    const picked = items.find((i) => i.id === chosen);
+    if (value === BUILTIN_CONFIG_ID) {
+      const cfg = getBuiltinDefaultConfig();
+      if (!cfg) {
+        ui.log.error(`Builtin config not available (missing env: ${builtinStatus.missing.join(", ")})`);
+        continue;
+      }
+      const action = await selectWithBack<"activate" | "view" | "done">({
+        message: "default (builtin)",
+        options: [
+          { value: "activate", label: "Activate" },
+          { value: "view", label: "View (read-only)" },
+          { value: "done", label: "Done" },
+        ],
+      });
+      if (!action || action === BACK_VALUE || action === "done") continue;
+      if (action === "view") {
+        ui.log.info("[readonly] default");
+        ui.log.message(`provider: ${cfg.provider}`);
+        ui.log.message(`model: ${cfg.model}`);
+        ui.log.message(`key: (set)`);
+        ui.log.message(`baseUrl: ${cfg.baseUrl || "(empty)"}`);
+        continue;
+      }
+      if (action === "activate") {
+        setActiveConfigId(BUILTIN_CONFIG_ID);
+        ui.log.success("Activated (builtin)");
+        return;
+      }
+    }
+    const picked = items.find((i) => i.id === value);
     if (!picked) continue;
-    const r = await configDetailFlow(conf.configDir, picked);
-    if (r === "exit") return;
+    await configDetailFlow(conf.configDir, picked);
   }
 }
 
@@ -74,18 +143,19 @@ async function configDetailFlow(configDir: string, cfg: ConfigItem) {
       ],
     });
     if (!chosen || chosen === BACK_VALUE || chosen === "done") return;
+    const action = chosen as "activate" | "edit" | "delete";
 
-    if (chosen === "activate") {
+    if (action === "activate") {
       setActiveConfigId(cfg.id);
       ui.log.success("Activated");
       continue;
     }
-    if (chosen === "delete") {
+    if (action === "delete") {
       await deleteConfig(configDir, cfg.id);
       ui.log.success("Deleted");
       return;
     }
-    if (chosen === "edit") {
+    if (action === "edit") {
       cfg = await editConfigFlow(configDir, cfg);
       continue;
     }

@@ -1,4 +1,5 @@
-import Conf from "conf";
+import Conf, { type Options as ConfOptions } from "conf";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
@@ -22,14 +23,25 @@ function xdgConfigHome() {
 }
 
 export function createConfigStore() {
-  const conf = new Conf<StoreData>({
+  const homeOverride = process.env.LITEWIKI_HOME?.trim();
+  const baseDir = homeOverride
+    ? path.resolve(homeOverride)
+    : path.join(xdgConfigHome(), "litewiki");
+
+  const confOptions: ConfOptions<StoreData> = {
     projectName: "litewiki",
-  });
+  };
+  if (homeOverride) {
+    const storeDir = path.join(baseDir, "store");
+    fs.mkdirSync(storeDir, { recursive: true });
+    confOptions.cwd = storeDir;
+  }
+  const conf = new Conf<StoreData>(confOptions as any);
 
   const defaults: StoreData = {
-    profilesDir: path.join(xdgConfigHome(), "litewiki", "profiles"),
-    archivesDir: path.join(xdgConfigHome(), "litewiki", "runs"),
-    configDir: path.join(xdgConfigHome(), "litewiki", "configs"),
+    profilesDir: path.join(baseDir, "profiles"),
+    archivesDir: path.join(baseDir, "runs"),
+    configDir: path.join(baseDir, "configs"),
     defaultProfileId: "default",
   };
 
