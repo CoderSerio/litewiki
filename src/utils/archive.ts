@@ -1,8 +1,8 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import crypto from "node:crypto";
-import { ensureDir } from "./fs.js";
 import { shortHash } from "./format.js";
+import { ensureDir } from "./fs.js";
 
 export type RunMeta = {
   createdAt: string; // ISO
@@ -62,14 +62,17 @@ export async function readLatestRunId(archivesDir: string, projectId: string) {
 export async function writeLatestRunId(
   archivesDir: string,
   projectId: string,
-  runId: string
+  runId: string,
 ) {
   const fp = latestPointerPath(archivesDir, projectId);
   await ensureDir(path.dirname(fp));
   await fs.writeFile(fp, JSON.stringify({ runId }, null, 2) + "\n", "utf-8");
 }
 
-export async function readLegacyLatestRunId(archivesDir: string, repoKey: string) {
+export async function readLegacyLatestRunId(
+  archivesDir: string,
+  repoKey: string,
+) {
   const fp = path.join(archivesDir, repoKey, "latest.json");
   try {
     const raw = await fs.readFile(fp, "utf-8");
@@ -90,16 +93,27 @@ async function readProjectMeta(projectDir: string) {
   try {
     const raw = await fs.readFile(fp, "utf-8");
     const json = JSON.parse(raw);
-    if (!json || typeof json?.projectId !== "string" || typeof json?.targetPath !== "string") {
+    if (
+      !json ||
+      typeof json?.projectId !== "string" ||
+      typeof json?.targetPath !== "string"
+    ) {
       return null;
     }
-    return json as { projectId: string; projectName: string; targetPath: string };
+    return json as {
+      projectId: string;
+      projectName: string;
+      targetPath: string;
+    };
   } catch {
     return null;
   }
 }
 
-async function writeProjectMeta(projectDir: string, meta: { projectId: string; projectName: string; targetPath: string }) {
+async function writeProjectMeta(
+  projectDir: string,
+  meta: { projectId: string; projectName: string; targetPath: string },
+) {
   const fp = projectMetaPath(projectDir);
   await fs.writeFile(fp, JSON.stringify(meta, null, 2) + "\n", "utf-8");
 }
@@ -114,11 +128,21 @@ async function resolveProjectInfo(archivesDir: string, meta: RunMeta) {
     .then((st) => st.isDirectory())
     .catch(() => false);
   if (!baseExists) {
-    return { projectId: baseId, projectName, projectDir: baseDir, targetPath: meta.targetPath };
+    return {
+      projectId: baseId,
+      projectName,
+      projectDir: baseDir,
+      targetPath: meta.targetPath,
+    };
   }
   const baseMeta = await readProjectMeta(baseDir);
   if (baseMeta?.targetPath === meta.targetPath) {
-    return { projectId: baseId, projectName, projectDir: baseDir, targetPath: meta.targetPath };
+    return {
+      projectId: baseId,
+      projectName,
+      projectDir: baseDir,
+      targetPath: meta.targetPath,
+    };
   }
   // Use a git-related hash when possible; avoid hash unless collision.
   const suffix = shortHash(meta.head || meta.repoKey || meta.targetPath, 6);
@@ -131,7 +155,12 @@ async function resolveProjectInfo(archivesDir: string, meta: RunMeta) {
   if (exists) {
     const meta2 = await readProjectMeta(projectDir);
     if (meta2?.targetPath === meta.targetPath) {
-      return { projectId, projectName, projectDir, targetPath: meta.targetPath };
+      return {
+        projectId,
+        projectName,
+        projectDir,
+        targetPath: meta.targetPath,
+      };
     }
     const alt = shortHash(meta.runId || meta.targetPath, 6);
     projectId = `${projectName}-${alt}`;
@@ -140,14 +169,19 @@ async function resolveProjectInfo(archivesDir: string, meta: RunMeta) {
   return { projectId, projectName, projectDir, targetPath: meta.targetPath };
 }
 
-export async function findProjectIdByTargetPath(archivesDir: string, targetPath: string) {
+export async function findProjectIdByTargetPath(
+  archivesDir: string,
+  targetPath: string,
+) {
   const root = projectsRoot(archivesDir);
   const rootExists = await fs
     .stat(root)
     .then((st) => st.isDirectory())
     .catch(() => false);
   if (!rootExists) return null;
-  const projects = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+  const projects = await fs
+    .readdir(root, { withFileTypes: true })
+    .catch(() => []);
   for (const p of projects) {
     if (!p.isDirectory()) continue;
     const projectDir = path.join(root, p.name);
@@ -177,11 +211,7 @@ export async function writeRun(props: {
   };
 
   await fs.writeFile(reportPath, props.reportMarkdown, "utf-8");
-  await fs.writeFile(
-    metaPath,
-    JSON.stringify(meta, null, 2) + "\n",
-    "utf-8"
-  );
+  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2) + "\n", "utf-8");
   await ensureDir(resolved.projectDir);
   await writeProjectMeta(resolved.projectDir, {
     projectId: resolved.projectId,
@@ -196,7 +226,7 @@ export async function writeRun(props: {
 export async function readReportByRunId(
   archivesDir: string,
   projectId: string,
-  runId: string
+  runId: string,
 ) {
   const fp = path.join(runDir(archivesDir, projectId, runId), "report.md");
   try {
@@ -212,7 +242,10 @@ export async function readLatestReport(archivesDir: string, projectId: string) {
   return await readReportByRunId(archivesDir, projectId, runId);
 }
 
-export async function readLegacyLatestReport(archivesDir: string, repoKey: string) {
+export async function readLegacyLatestReport(
+  archivesDir: string,
+  repoKey: string,
+) {
   const runId = await readLegacyLatestRunId(archivesDir, repoKey);
   if (!runId) return null;
   const fp = path.join(archivesDir, repoKey, runId, "report.md");
@@ -226,7 +259,10 @@ export async function readLegacyLatestReport(archivesDir: string, repoKey: strin
 export async function listRuns(archivesDir: string, projectId?: string) {
   const results: RunInfo[] = [];
 
-  async function collectRunsUnder(dir: string, overrideProject?: { projectId: string; projectName: string }) {
+  async function collectRunsUnder(
+    dir: string,
+    overrideProject?: { projectId: string; projectName: string },
+  ) {
     const items = await fs
       .readdir(dir, { withFileTypes: true })
       .catch(() => []);
@@ -246,7 +282,10 @@ export async function listRuns(archivesDir: string, projectId?: string) {
           meta.projectName = meta.projectName || overrideProject.projectName;
         } else if (!meta.projectId) {
           const projectName = path.basename(meta.targetPath || "") || "project";
-          const suffix = shortHash(meta.head || meta.repoKey || meta.targetPath, 6);
+          const suffix = shortHash(
+            meta.head || meta.repoKey || meta.targetPath,
+            6,
+          );
           meta.projectName = meta.projectName || projectName;
           meta.projectId = `${projectName}-${suffix}`;
         }
@@ -266,7 +305,9 @@ export async function listRuns(archivesDir: string, projectId?: string) {
     if (projectId) {
       await collectRunsUnder(path.join(root, projectId));
     } else {
-      const projects = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+      const projects = await fs
+        .readdir(root, { withFileTypes: true })
+        .catch(() => []);
       for (const p of projects) {
         if (!p.isDirectory()) continue;
         const projectDir = path.join(root, p.name);

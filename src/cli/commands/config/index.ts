@@ -1,5 +1,5 @@
-import * as ui from "../../ui.js";
 import { configController } from "../../controllers/configController.js";
+import * as ui from "../../ui.js";
 
 export async function configCmd(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");

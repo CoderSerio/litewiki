@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { ToolResult } from "../types.js";
 import { IsPathSafe } from "../../utils/agent.js";
+import type { ToolResult } from "../types.js";
 
 const readFileSchema = {
   type: "object",

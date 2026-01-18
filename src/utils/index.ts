@@ -4,4 +4,3 @@ export * from "./format.js";
 export * from "./fs.js";
 export * from "./git.js";
 export * from "./path.js";
-

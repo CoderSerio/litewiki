@@ -1,12 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
-import { ui } from "../core/ui.js";
-import { selectWithBack, BACK_VALUE } from "../core/ui.js";
-import { listProfiles, viewProfile, createProfile, editProfile, type LoadedProfile } from "../commands/profile/utils.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
+import { ensureDir } from "../../utils/fs.js";
+import {
+  type LoadedProfile,
+  createProfile,
+  editProfile,
+  listProfiles,
+  viewProfile,
+} from "../commands/profile/utils.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
+import { ui } from "../core/ui.js";
+import { BACK_VALUE, selectWithBack } from "../core/ui.js";
 
 export async function profilesController(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
@@ -24,7 +30,9 @@ export async function profilesController(props: { intro?: boolean }) {
     const good = list.filter((p) => p.id !== "undefined" && p.id !== "null");
 
     // find broken .json files that failed to parse
-    const ents = await fs.readdir(conf.profilesDir, { withFileTypes: true }).catch(() => []);
+    const ents = await fs
+      .readdir(conf.profilesDir, { withFileTypes: true })
+      .catch(() => []);
     const broken: { id: string; filePath: string }[] = [];
     for (const it of ents) {
       if (!it.isFile() || !it.name.endsWith(".json")) continue;
@@ -49,14 +57,21 @@ export async function profilesController(props: { intro?: boolean }) {
         hint:
           p.id === "default" || p.source === "builtin"
             ? "builtin, read-only"
-            : shortenMiddle(relativePath(conf.profilesDir, p.filePath || ""), 60),
+            : shortenMiddle(
+                relativePath(conf.profilesDir, p.filePath || ""),
+                60,
+              ),
       })),
       ...broken.map((b) => ({
         value: `broken::${b.filePath}`,
         label: `[broken] ${b.id}`,
         hint: shortenMiddle(relativePath(conf.profilesDir, b.filePath), 60),
       })),
-      { value: "__new__", label: "+ new profile", hint: "create and edit a new profile file" },
+      {
+        value: "__new__",
+        label: "+ new profile",
+        hint: "create and edit a new profile file",
+      },
     ];
 
     const chosen = await selectWithBack<string>({
@@ -71,7 +86,10 @@ export async function profilesController(props: { intro?: boolean }) {
     }
     if (chosen.startsWith("broken::")) {
       const fp = chosen.slice("broken::".length);
-      const deleted = await maybeDeleteBrokenPath({ targetPath: fp, reason: "Invalid or unparsable profile JSON" });
+      const deleted = await maybeDeleteBrokenPath({
+        targetPath: fp,
+        reason: "Invalid or unparsable profile JSON",
+      });
       if (deleted) {
         // builtin default lives in memory; no file bootstrap needed
       }

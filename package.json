@@ -1,11 +1,27 @@
 {
   "name": "litewiki",
   "version": "1.0.0",
-  "description": "",
+  "description": "A local-first CLI that generates and archives wiki-style reports for a codebase.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "wiki": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "README_ZH.md",
+    "AGENTS.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoderSerio/light-wiki.git"
+  },
+  "homepage": "https://github.com/CoderSerio/light-wiki#readme",
+  "bugs": {
+    "url": "https://github.com/CoderSerio/light-wiki/issues"
   },
   "scripts": {
     "test": "pnpm run test:compile && node --test build/ts-tests/test/**/*.test.js",
@@ -15,13 +31,33 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check . && pnpm -s build",
+    "prepublishOnly": "pnpm -s test && pnpm -s build",
     "prepare": "husky"
   },
-  "keywords": [],
+  "keywords": [
+    "cli",
+    "wiki",
+    "documentation",
+    "docs",
+    "codebase",
+    "report",
+    "local-first",
+    "agent",
+    "llm",
+    "openai",
+    "mermaid",
+    "typescript"
+  ],
   "author": "Carbon<carbon1024@foxmail.com>",
   "license": "ISC",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@types/node": "^25.0.3",
     "@biomejs/biome": "^1.9.4",

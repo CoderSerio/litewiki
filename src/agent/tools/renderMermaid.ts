@@ -107,7 +107,7 @@ const renderMermaidParams = z.object({
         id: z.string().optional(),
         label: z.string(),
         shape: z.string().optional(),
-      })
+      }),
     )
     .optional(),
   edges: z
@@ -117,7 +117,7 @@ const renderMermaidParams = z.object({
         to: z.string(),
         label: z.string().optional(),
         arrow: z.string().optional(),
-      })
+      }),
     )
     .optional(),
   participants: z
@@ -125,7 +125,7 @@ const renderMermaidParams = z.object({
       z.object({
         id: z.string().optional(),
         label: z.string(),
-      })
+      }),
     )
     .optional(),
   messages: z
@@ -135,7 +135,7 @@ const renderMermaidParams = z.object({
         to: z.string(),
         label: z.string(),
         arrow: z.string().optional(),
-      })
+      }),
     )
     .optional(),
   states: z
@@ -143,7 +143,7 @@ const renderMermaidParams = z.object({
       z.object({
         id: z.string().optional(),
         label: z.string(),
-      })
+      }),
     )
     .optional(),
   transitions: z
@@ -152,7 +152,7 @@ const renderMermaidParams = z.object({
         from: z.string(),
         to: z.string(),
         label: z.string().optional(),
-      })
+      }),
     )
     .optional(),
   classes: z
@@ -162,7 +162,7 @@ const renderMermaidParams = z.object({
         label: z.string(),
         fields: z.array(z.string()).optional(),
         methods: z.array(z.string()).optional(),
-      })
+      }),
     )
     .optional(),
 });
@@ -178,7 +178,9 @@ function toId(label: string, fallback: string) {
 }
 
 function toLabel(label: string) {
-  return String(label || "").replaceAll('"', '\\"').replaceAll("\n", " ");
+  return String(label || "")
+    .replaceAll('"', '\\"')
+    .replaceAll("\n", " ");
 }
 
 function renderNode(id: string, label: string, shape?: string) {
@@ -228,7 +230,9 @@ function renderSequence(params: z.infer<typeof renderMermaidParams>) {
   });
   (params.messages || []).forEach((m) => {
     const arrow = m.arrow || "->>";
-    lines.push(`  ${toId(m.from, m.from)}${arrow}${toId(m.to, m.to)}: ${toLabel(m.label)}`);
+    lines.push(
+      `  ${toId(m.from, m.from)}${arrow}${toId(m.to, m.to)}: ${toLabel(m.label)}`,
+    );
   });
   return lines.join("\n");
 }

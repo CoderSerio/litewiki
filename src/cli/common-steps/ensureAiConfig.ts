@@ -1,26 +1,28 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
-import { createConfigStore } from "../../config/store.js";
-import { ensureDir } from "../../utils/fs.js";
 import {
+  PROVIDERS,
+  isProviderSupported,
+  normalizeProviderId,
+} from "../../agent/providers/providerCatalog.js";
+import { createConfigStore } from "../../config/store.js";
+import {
+  type ConfigItem,
   ConfigSchema,
   getActiveConfigId,
   listConfigs,
   migrateLegacyConfigIfNeeded,
-  type ConfigItem,
 } from "../../services/configService.js";
-import { configController } from "../controllers/configController.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
+import { ensureDir } from "../../utils/fs.js";
+import { configController } from "../controllers/configController.js";
+import { BACK_VALUE, selectWithBack, ui } from "../core/ui.js";
 import { maybeDeleteBrokenPath } from "./fileOps.js";
-import { PROVIDERS, isProviderSupported, normalizeProviderId } from "../../agent/providers/providerCatalog.js";
 
 function providerOptions() {
   return PROVIDERS.map((p) => {
     const label =
-      p.status === "supported"
-        ? p.label
-        : `${p.label} (unsupported)`;
+      p.status === "supported" ? p.label : `${p.label} (unsupported)`;
     const opt: { value: typeof p.id; label: string; hint?: string } = {
       value: p.id,
       label,
@@ -50,7 +52,8 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     const all = await listConfigs(conf.configDir);
     const found = all.find((c) => c.id === active);
     if (!found) return null;
-    if (!found.provider || !found.model || !found.key || !found.baseUrl) return null;
+    if (!found.provider || !found.model || !found.key || !found.baseUrl)
+      return null;
     const provider = normalizeProviderId(found.provider);
     if (!isProviderSupported(provider)) return null;
     return { ...found, provider };
@@ -62,7 +65,9 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
   // helper: list broken config files (json files that are not parsed by listConfigs)
   const listBrokenConfigs = async () => {
     const all = await listConfigs(conf.configDir);
-    const ents = await fs.readdir(conf.configDir, { withFileTypes: true }).catch(() => []);
+    const ents = await fs
+      .readdir(conf.configDir, { withFileTypes: true })
+      .catch(() => []);
     const broken: { id: string; filePath: string; error?: string }[] = [];
     for (const it of ents) {
       if (!it.isFile() || !it.name.endsWith(".json")) continue;
@@ -98,13 +103,20 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
       ui.log.error(`Broken config JSON: ${it.filePath}\n${it.error}`);
     }
     const validConfigs = await listConfigs(conf.configDir);
-    if (validConfigs.length === 0 && brokenSummary.length === 0 && !shownNoConfigHint) {
+    if (
+      validConfigs.length === 0 &&
+      brokenSummary.length === 0 &&
+      !shownNoConfigHint
+    ) {
       ui.log.error("No valid config found");
       ui.log.info(`Configs dir: ${conf.configDir}`);
       ui.log.info(`Profiles dir: ${conf.profilesDir}`);
       ui.log.info("Please create a config for your model provider.");
       shownNoConfigHint = true;
-      const open = await ui.confirm("No config found. Open config manager to create one?", true);
+      const open = await ui.confirm(
+        "No config found. Open config manager to create one?",
+        true,
+      );
       if (open) {
         await configController({ intro: true });
         const again = await pickActive();
@@ -166,11 +178,17 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
           })),
         });
         if (!pick || pick === BACK_VALUE) break;
-        await maybeDeleteBrokenPath({ targetPath: pick, reason: "Invalid or unparsable config JSON" });
+        await maybeDeleteBrokenPath({
+          targetPath: pick,
+          reason: "Invalid or unparsable config JSON",
+        });
       }
       const again = await pickActive();
       if (again) return again;
-      const rebuild = await ui.confirm("No valid configs remain. Open config manager to create one?", true);
+      const rebuild = await ui.confirm(
+        "No valid configs remain. Open config manager to create one?",
+        true,
+      );
       if (rebuild) {
         await configController({ intro: true });
         const after = await pickActive();
@@ -187,7 +205,9 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     });
     if (!provider) return null;
     if (!isProviderSupported(provider)) {
-      ui.log.warn(`Provider "${provider}" is not supported yet; run will fail for now.`);
+      ui.log.warn(
+        `Provider "${provider}" is not supported yet; run will fail for now.`,
+      );
       const ok = await ui.confirm("仍然继续吗？", false);
       if (!ok) return null;
     }

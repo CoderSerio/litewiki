@@ -1,7 +1,9 @@
-import { ui } from "../core/ui.js";
 import { resolveInputDir } from "../../utils/path.js";
+import { ui } from "../core/ui.js";
 
-export async function pickDirectory(initialArg?: string): Promise<string | null> {
+export async function pickDirectory(
+  initialArg?: string,
+): Promise<string | null> {
   try {
     const dir = await resolveInputDir(initialArg);
     return dir;
@@ -10,4 +12,3 @@ export async function pickDirectory(initialArg?: string): Promise<string | null>
     return null;
   }
 }
-

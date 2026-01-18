@@ -1,5 +1,5 @@
-import * as ui from "../../ui.js";
 import { profilesController } from "../../controllers/profilesController.js";
+import * as ui from "../../ui.js";
 
 export async function profilesCmd(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");

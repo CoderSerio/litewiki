@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { ensureDir } from "../utils/fs.js";
 import { createConfigStore } from "../config/store.js";
+import { ensureDir } from "../utils/fs.js";
 
 export const ConfigSchema = z.object({
   id: z.string().min(1),
@@ -21,7 +21,9 @@ export function configFilePath(configDir: string, id: string) {
 }
 
 export async function listConfigs(configDir: string): Promise<ConfigItem[]> {
-  const ents = await fs.readdir(configDir, { withFileTypes: true }).catch(() => []);
+  const ents = await fs
+    .readdir(configDir, { withFileTypes: true })
+    .catch(() => []);
   const results: ConfigItem[] = [];
   for (const it of ents) {
     if (!it.isFile() || !it.name.endsWith(".json")) continue;
@@ -42,7 +44,10 @@ export async function listConfigs(configDir: string): Promise<ConfigItem[]> {
   return results;
 }
 
-export async function loadConfigById(configDir: string, id: string): Promise<ConfigItem | null> {
+export async function loadConfigById(
+  configDir: string,
+  id: string,
+): Promise<ConfigItem | null> {
   const fp = configFilePath(configDir, id);
   try {
     const raw = JSON.parse(await fs.readFile(fp, "utf-8"));
@@ -53,7 +58,10 @@ export async function loadConfigById(configDir: string, id: string): Promise<Con
   }
 }
 
-export async function saveConfig(configDir: string, cfg: Omit<ConfigItem, "filePath">) {
+export async function saveConfig(
+  configDir: string,
+  cfg: Omit<ConfigItem, "filePath">,
+) {
   await ensureDir(configDir);
   const data = ConfigSchema.parse(cfg);
   const fp = configFilePath(configDir, data.id);
@@ -82,7 +90,10 @@ export function setActiveConfigId(id?: string) {
 export async function migrateLegacyConfigIfNeeded(configDir: string) {
   await ensureDir(configDir);
   const legacy = path.join(configDir, "config.json");
-  const exists = await fs.stat(legacy).then(() => true).catch(() => false);
+  const exists = await fs
+    .stat(legacy)
+    .then(() => true)
+    .catch(() => false);
   const hasAny = (await listConfigs(configDir)).length > 0;
   if (!exists || hasAny) return;
   try {
@@ -101,4 +112,3 @@ export async function migrateLegacyConfigIfNeeded(configDir: string) {
     // ignore
   }
 }
-

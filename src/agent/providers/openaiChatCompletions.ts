@@ -1,6 +1,10 @@
-import { listDirectoryTool, readFileTool, renderMermaidTool } from "../tools/index.js";
 import { createChatCompletionsClient } from "../chatCompletionsClient.js";
 import { runAgent } from "../run.js";
+import {
+  listDirectoryTool,
+  readFileTool,
+  renderMermaidTool,
+} from "../tools/index.js";
 
 export async function runDeepWikiAgent(
   cwd: string,
@@ -12,7 +16,7 @@ export async function runDeepWikiAgent(
     apiKey?: string;
     baseUrl?: string;
     model?: string;
-  }
+  },
 ) {
   const apiKey = opts?.apiKey;
   if (!apiKey) throw new Error("apiKey is required ❌");
@@ -53,10 +57,9 @@ export async function runDeepWikiAgent(
     agentArgs.extensions = opts.extensions;
   }
 
-  if (opts?.priorReport && opts.priorReport.trim()) {
+  if (opts?.priorReport?.trim()) {
     agentArgs.priorReport = opts.priorReport;
   }
 
-  return await runAgent(agentArgs as any);
+  return await runAgent(agentArgs as unknown as Parameters<typeof runAgent>[0]);
 }
-

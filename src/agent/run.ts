@@ -1,39 +1,50 @@
-import type { ToolResult } from "./types.js";
 import type { ChatCompletionsClient } from "./chatCompletionsClient.js";
 import { parseToolCalls } from "./parseToolCalls.js";
+import type { ToolResult } from "./types.js";
 
-type AnyToolCall = any;
-type AnyMessage = any;
+type ToolCallLike = {
+  id?: string;
+  name?: string;
+  args?: unknown;
+  function?: { name?: string; arguments?: unknown };
+};
+
+type MessageLike = {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: unknown;
+  reasoning_content?: string;
+  tool_calls?: ToolCallLike[];
+};
 
 export type AgentTools = {
   listDirectory: {
-    meta: any;
+    meta: unknown;
     handler(props: {
       toolResults: ToolResult[];
-      args: Record<string, any>;
-      messages: AnyMessage[];
+      args: Record<string, unknown>;
+      messages: MessageLike[];
       cwd: string;
-      call: AnyToolCall;
+      call: ToolCallLike;
     }): Promise<void>;
   };
   readFile: {
-    meta: any;
+    meta: unknown;
     handler(props: {
       toolResults: ToolResult[];
-      args: Record<string, any>;
-      messages: AnyMessage[];
+      args: Record<string, unknown>;
+      messages: MessageLike[];
       cwd: string;
-      call: AnyToolCall;
+      call: ToolCallLike;
     }): Promise<void>;
   };
   renderMermaid: {
-    meta: any;
+    meta: unknown;
     handler(props: {
       toolResults: ToolResult[];
-      args: Record<string, any>;
-      messages: AnyMessage[];
+      args: Record<string, unknown>;
+      messages: MessageLike[];
       cwd: string;
-      call: AnyToolCall;
+      call: ToolCallLike;
     }): Promise<void>;
   };
 };
@@ -66,7 +77,7 @@ export async function runAgent(props: {
     .filter(Boolean)
     .join("\n");
 
-  const messages: AnyMessage[] = [
+  const messages: MessageLike[] = [
     { role: "system", content: sys },
     {
       role: "user",
@@ -74,14 +85,18 @@ export async function runAgent(props: {
     },
   ];
 
-  if (priorReport && priorReport.trim()) {
+  if (priorReport?.trim()) {
     messages.push({
       role: "user",
       content: `这是上次生成的报告（用于增量更新参考）：\n\n${priorReport}`,
     });
   }
 
-  const toolsMeta = [tools.listDirectory.meta, tools.readFile.meta];
+  const toolsMeta = [
+    tools.listDirectory.meta,
+    tools.readFile.meta,
+    tools.renderMermaid.meta,
+  ];
 
   for (let i = 0; i < maxIterations; i++) {
     if (i === maxIterations - 2) {
@@ -92,9 +107,13 @@ export async function runAgent(props: {
       });
     }
 
-    const resp = await client.chat({ model, messages, tools: toolsMeta });
-    const choice = resp.choices?.[0];
-    const msg = choice?.message;
+    const resp = (await client.chat({
+      model,
+      messages: messages as unknown as any,
+      tools: toolsMeta as unknown as any,
+    })) as any;
+    const choice = resp?.choices?.[0];
+    const msg = choice?.message as MessageLike | undefined;
     if (!msg) throw new Error("Empty response from model");
 
     const parsedFromReasoning = parseToolCalls(msg.reasoning_content);
@@ -102,39 +121,56 @@ export async function runAgent(props: {
 
     if (!toolCalls || toolCalls.length === 0) {
       if (msg.content) {
-        return typeof msg.content === "string"
-          ? msg.content
-          : msg.content.map((c: any) => c.text || "").join("\n");
+        if (typeof msg.content === "string") return msg.content;
+        if (Array.isArray(msg.content)) {
+          return msg.content
+            .map((c) =>
+              typeof (c as { text?: unknown } | null)?.text === "string"
+                ? (c as { text: string }).text || ""
+                : "",
+            )
+            .join("\n");
+        }
+        return String(msg.content);
       }
       throw new Error(
-        `No tool calls and no content. Raw response: ${JSON.stringify(resp)}`
+        `No tool calls and no content. Raw response: ${JSON.stringify(resp)}`,
       );
     }
 
     const toolResults: ToolResult[] = [];
 
-    for (const call of toolCalls as AnyToolCall[]) {
-      const name = "function" in call ? call.function?.name : call.name;
-      const argsRaw = "function" in call ? call.function?.arguments : call.args;
-
-      let args: any = {};
-      try {
-        args =
-          typeof argsRaw === "string" ? JSON.parse(argsRaw) : argsRaw || {};
-      } catch (e) {
-        toolResults.push({
-          tool: name,
-          data: `args parse error: ${String(e)}`,
-        } as any);
+    for (const call of toolCalls as ToolCallLike[]) {
+      const name = call.function?.name ?? call.name;
+      const argsRaw = call.function?.arguments ?? call.args;
+      if (!name) {
+        toolResults.push({ tool: "readFile", data: "unknown tool: (empty)" });
         continue;
       }
 
-      const tool = (tools as any)[name];
+      let args: Record<string, unknown> = {};
+      try {
+        if (typeof argsRaw === "string") {
+          args = (JSON.parse(argsRaw) || {}) as Record<string, unknown>;
+        } else if (argsRaw && typeof argsRaw === "object") {
+          args = argsRaw as Record<string, unknown>;
+        } else {
+          args = {};
+        }
+      } catch (e) {
+        toolResults.push({
+          tool: "readFile",
+          data: `args parse error: ${String(e)}`,
+        });
+        continue;
+      }
+
+      const tool = (tools as unknown as Record<string, any>)[name];
       if (!tool || typeof tool.handler !== "function") {
         toolResults.push({
-          tool: name,
+          tool: "readFile",
           data: `unknown tool: ${String(name)}`,
-        } as any);
+        });
         continue;
       }
 
@@ -146,7 +182,7 @@ export async function runAgent(props: {
       messages.push({
         role: "assistant",
         content: msg.content ?? "",
-        tool_calls: msg.tool_calls,
+        tool_calls: msg.tool_calls as unknown as ToolCallLike[],
       });
     }
   }

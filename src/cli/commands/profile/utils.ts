@@ -1,18 +1,21 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { DEFAULT_PROFILE, type PromptProfile } from "./constant.js";
-import { ensureDir } from "../../../utils/fs.js";
-import * as ui from "../../ui.js";
-import { selectWithBack, BACK_VALUE } from "../../core/ui.js";
 import { shortenMiddle } from "../../../utils/format.js";
+import { ensureDir } from "../../../utils/fs.js";
+import { BACK_VALUE, selectWithBack } from "../../core/ui.js";
+import * as ui from "../../ui.js";
+import { DEFAULT_PROFILE, type PromptProfile } from "./constant.js";
 
 const RESERVED_IDS = new Set(["undefined", "null"]);
 const ProfileIdSchema = z
   .string()
   .min(1, "id must not be empty")
   .max(64, "id too long (max 64)")
-  .regex(/^[a-zA-Z0-9._-]+$/, "id can only contain letters, digits, dot, underscore, and hyphen")
+  .regex(
+    /^[a-zA-Z0-9._-]+$/,
+    "id can only contain letters, digits, dot, underscore, and hyphen",
+  )
   .refine((id) => !RESERVED_IDS.has(id.toLowerCase()), {
     message: "id is a reserved word (undefined/null)",
   });
@@ -35,7 +38,7 @@ export function profileFilePath(profilesDir: string, id: string) {
 }
 
 export async function loadProfileFromFile(
-  filePath: string
+  filePath: string,
 ): Promise<LoadedProfile> {
   const raw = await fs.readFile(filePath, "utf-8");
   const json = JSON.parse(raw);
@@ -47,7 +50,7 @@ export async function loadProfileFromFile(
 }
 
 export async function listProfiles(
-  profilesDir: string
+  profilesDir: string,
 ): Promise<LoadedProfile[]> {
   const items = await fs
     .readdir(profilesDir, { withFileTypes: true })
@@ -75,9 +78,10 @@ export async function listProfiles(
 
 export async function getProfileById(
   profilesDir: string,
-  id: string
+  id: string,
 ): Promise<LoadedProfile | null> {
-  if (id === DEFAULT_PROFILE.id) return { ...DEFAULT_PROFILE, source: "builtin" };
+  if (id === DEFAULT_PROFILE.id)
+    return { ...DEFAULT_PROFILE, source: "builtin" };
   const fp = profileFilePath(profilesDir, id);
   try {
     return await loadProfileFromFile(fp);
@@ -88,7 +92,7 @@ export async function getProfileById(
 
 export async function writeProfileFile(
   filePath: string,
-  profile: PromptProfile
+  profile: PromptProfile,
 ) {
   await ensureDir(path.dirname(filePath));
   const data = ProfileSchema.parse(profile);
@@ -105,7 +109,7 @@ export async function viewProfile(profile: LoadedProfile): Promise<void> {
   ui.log.message(`systemPrompt:\n${profile.systemPrompt}`);
   if (profile.extensions?.length) {
     ui.log.message(
-      `extensions:\n${profile.extensions.map((e) => `  - ${e}`).join("\n")}`
+      `extensions:\n${profile.extensions.map((e) => `  - ${e}`).join("\n")}`,
     );
   }
 }
@@ -132,7 +136,9 @@ export async function createProfile(profilesDir: string): Promise<void> {
   try {
     await writeProfileFile(fp, newProfile);
   } catch (e: any) {
-    ui.log.error(`Create failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`);
+    ui.log.error(
+      `Create failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`,
+    );
     return;
   }
   ui.log.success(`Created: ${fp}`);
@@ -147,16 +153,24 @@ type EditableField = "id" | "version" | "systemPrompt" | "extensions" | "done";
 /** Edit a custom profile */
 export async function editProfile(
   profilesDir: string,
-  profile: LoadedProfile
+  profile: LoadedProfile,
 ): Promise<void> {
-  const filePath = profile.filePath!;
+  const filePath = profile.filePath;
+  if (!filePath) {
+    ui.log.error("This profile is readonly (no filePath).");
+    return;
+  }
 
   // Show all fields
   const selected = await selectWithBack<EditableField>({
     message: `Edit ${profile.id}`,
     options: [
       { value: "id", label: `id: ${profile.id}`, hint: "rename this profile" },
-      { value: "version", label: `version: ${profile.version}`, hint: "update the version number" },
+      {
+        value: "version",
+        label: `version: ${profile.version}`,
+        hint: "update the version number",
+      },
       {
         value: "systemPrompt",
         label: `systemPrompt: ${shortenMiddle(profile.systemPrompt, 40)}`,
@@ -191,7 +205,10 @@ export async function editProfile(
 
     // Do not overwrite existing file
     const newPath = profileFilePath(profilesDir, newId);
-    const exists = await fs.stat(newPath).then(() => true).catch(() => false);
+    const exists = await fs
+      .stat(newPath)
+      .then(() => true)
+      .catch(() => false);
     if (exists) {
       ui.log.error(`Already exists: ${newId}`);
       await editProfile(profilesDir, profile);
@@ -205,7 +222,9 @@ export async function editProfile(
       await fs.unlink(filePath);
       ui.log.success(`Renamed to ${newId}`);
     } catch (e: any) {
-      ui.log.error(`Rename failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`);
+      ui.log.error(
+        `Rename failed: ${String(e?.errors?.[0]?.message || e?.message || e)}`,
+      );
       await editProfile(profilesDir, profile);
       return;
     }
@@ -219,17 +238,14 @@ export async function editProfile(
   }
 
   if (selected === "version") {
-    const newVersion = await ui.text(
-      "New version",
-      String(profile.version)
-    );
+    const newVersion = await ui.text("New version", String(profile.version));
     if (!newVersion) {
       await editProfile(profilesDir, profile);
       return;
     }
 
-    const v = parseInt(newVersion, 10);
-    if (isNaN(v) || v < 1) {
+    const v = Number.parseInt(newVersion, 10);
+    if (Number.isNaN(v) || v < 1) {
       ui.log.error("version must be a positive integer");
       await editProfile(profilesDir, profile);
       return;

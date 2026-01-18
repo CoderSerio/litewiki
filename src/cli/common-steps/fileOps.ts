@@ -16,7 +16,7 @@ export async function maybeDeleteBrokenPath(opts: {
   const reason = opts.reason ? `\nReason: ${opts.reason}` : "";
   const ok = await ui.confirm(
     `This ${kind} looks broken:${reason}\n\n${opts.targetPath}\n\nDelete it?`,
-    false
+    false,
   );
   if (!ok) return false;
   try {

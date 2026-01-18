@@ -13,10 +13,16 @@ export type RunDeepWikiAgentOptions = {
   model?: string;
 };
 
-export async function runDeepWikiAgent(cwd: string, opts?: RunDeepWikiAgentOptions) {
+export async function runDeepWikiAgent(
+  cwd: string,
+  opts?: RunDeepWikiAgentOptions,
+) {
   const provider = normalizeProviderId(opts?.provider);
   if (provider === "openai") {
-    return await runWithOpenAiChatCompletions(cwd, opts as any);
+    return await runWithOpenAiChatCompletions(
+      cwd,
+      opts as unknown as Parameters<typeof runWithOpenAiChatCompletions>[1],
+    );
   }
   throw new Error(`Provider not supported yet: ${provider}`);
 }

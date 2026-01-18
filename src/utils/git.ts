@@ -1,7 +1,7 @@
-import { execa } from "execa";
-import path from "node:path";
-import fs from "node:fs/promises";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { execa } from "execa";
 
 export async function findGitRoot(startDir: string): Promise<string | null> {
   let current = startDir;
@@ -43,7 +43,7 @@ export async function getGitRemoteOriginUrl(repoRoot: string) {
 }
 
 export async function getGitStatusDirty(
-  repoRoot: string
+  repoRoot: string,
 ): Promise<boolean | null> {
   const out = await tryGit(repoRoot, ["status", "--porcelain"]);
   if (out == null) return null;

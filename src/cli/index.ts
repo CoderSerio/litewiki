@@ -1,12 +1,12 @@
-import { CAC, cac } from "cac";
-import { registerRunCommand, runCmd } from "./commands/run/index.js";
+import { type CAC, cac } from "cac";
+import { configCmd, registerConfigCommand } from "./commands/config/index.js";
 import {
-  registerProfilesCommand,
   profilesCmd,
+  registerProfilesCommand,
 } from "./commands/profile/index.js";
 import { registerReportsCommand, reportsCmd } from "./commands/report/index.js";
+import { registerRunCommand, runCmd } from "./commands/run/index.js";
 import * as ui from "./ui.js";
-import { configCmd, registerConfigCommand } from "./commands/config/index.js";
 
 type RootAction = "run" | "profile" | "report" | "config" | "help";
 
@@ -56,7 +56,11 @@ export async function cliMain(argv: string[]) {
         options: [
           { value: "run", label: "run", hint: "Analyze a directory" },
           { value: "report", label: "report", hint: "View archived reports" },
-          { value: "profile", label: "profile", hint: "Manage prompt profiles" },
+          {
+            value: "profile",
+            label: "profile",
+            hint: "Manage prompt profiles",
+          },
           { value: "config", label: "config", hint: "System configuration" },
           { value: "help", label: "help", hint: "Show all commands" },
           // { value: "config", label: "config", hint: "系统配置" },

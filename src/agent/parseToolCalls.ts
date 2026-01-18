@@ -5,24 +5,28 @@ type ParsedToolCall = {
 };
 
 export function parseToolCalls(
-  reasoningContent: string | undefined
+  reasoningContent: string | undefined,
 ): ParsedToolCall[] {
   if (!reasoningContent) return [];
 
   const results: ParsedToolCall[] = [];
   const regex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
 
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(reasoningContent)) !== null) {
+  let match: RegExpExecArray | null = null;
+  while (true) {
+    match = regex.exec(reasoningContent);
+    if (!match) break;
     const block = match[1] ?? "";
     const nameMatch = block.match(/^([^\n<]+)/);
-    const name = nameMatch && nameMatch[1] ? nameMatch[1].trim() : "";
+    const name = nameMatch?.[1] ? nameMatch[1].trim() : "";
 
     const argRegex =
       /<arg_key>([\s\S]*?)<\/arg_key><arg_value>([\s\S]*?)<\/arg_value>/g;
     const args: Record<string, string> = {};
-    let argMatch: RegExpExecArray | null;
-    while ((argMatch = argRegex.exec(block)) !== null) {
+    let argMatch: RegExpExecArray | null = null;
+    while (true) {
+      argMatch = argRegex.exec(block);
+      if (!argMatch) break;
       const k = argMatch[1] ?? "";
       const v = argMatch[2] ?? "";
       args[k.trim()] = v.trim();

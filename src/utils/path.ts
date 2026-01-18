@@ -1,5 +1,5 @@
-import path from "node:path";
 import fs from "node:fs/promises";
+import path from "node:path";
 
 /** Resolve input directory argument (or cwd). Throws if not a directory. */
 export async function resolveInputDir(raw?: string) {

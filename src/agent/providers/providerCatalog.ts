@@ -35,11 +35,15 @@ export const PROVIDERS: ProviderEntry[] = [
 ];
 
 export function isProviderSupported(id: string): boolean {
-  return PROVIDERS.some((p) => p.id === (id as ProviderId) && p.status === "supported");
+  return PROVIDERS.some(
+    (p) => p.id === (id as ProviderId) && p.status === "supported",
+  );
 }
 
 export function normalizeProviderId(raw: string | undefined): ProviderId {
-  const v = String(raw || "").trim().toLowerCase();
+  const v = String(raw || "")
+    .trim()
+    .toLowerCase();
   if (v === "openai") return "openai";
   if (v === "anthropic") return "anthropic";
   if (v === "google") return "google";
@@ -47,10 +51,10 @@ export function normalizeProviderId(raw: string | undefined): ProviderId {
   // legacy compatibility (previous interface-type providers)
   if (v === "openai-chat-completions") return "openai";
   if (v === "openai-responses") return "openai";
-  if (v === "anthropic-messages" || v === "anthropic-openai-compatible") return "anthropic";
+  if (v === "anthropic-messages" || v === "anthropic-openai-compatible")
+    return "anthropic";
   if (v === "gemini-generate-content") return "google";
   if (v === "ollama-openai-chat-completions") return "custom";
   if (v === "siliconflow") return "custom";
   return "custom";
 }
-

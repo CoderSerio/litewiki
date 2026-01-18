@@ -33,7 +33,7 @@ export async function select<T extends string>(props: {
   const cleaned: any = {
     message: props.message,
     options: props.options.map((o) =>
-      o.hint ? o : { value: o.value, label: o.label }
+      o.hint ? o : { value: o.value, label: o.label },
     ),
   };
   if (props.initialValue !== undefined)

@@ -3,15 +3,15 @@ type ChatMessage = {
   content?: string;
   tool_call_id?: string;
   name?: string;
-  tool_calls?: any[];
+  tool_calls?: unknown[];
 };
 
 export type ChatCompletionsClient = {
   chat(props: {
     model: string;
     messages: ChatMessage[];
-    tools: any[];
-  }): Promise<any>;
+    tools: unknown[];
+  }): Promise<unknown>;
 };
 
 export function createChatCompletionsClient(props: {
@@ -23,7 +23,7 @@ export function createChatCompletionsClient(props: {
   async function chat(request: {
     model: string;
     messages: ChatMessage[];
-    tools: any[];
+    tools: unknown[];
   }) {
     const body = {
       model: request.model,
@@ -50,9 +50,8 @@ export function createChatCompletionsClient(props: {
       throw new Error(`ChatCompletions error ${res.status}: ${text}`);
     }
 
-    return res.json();
+    return res.json() as Promise<unknown>;
   }
 
   return { chat };
 }
-

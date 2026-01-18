@@ -1,7 +1,7 @@
-import Conf, { type Options as ConfOptions } from "conf";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import Conf, { type Options as ConfOptions } from "conf";
 import { z } from "zod";
 
 const StoreSchema = z.object({

@@ -1,7 +1,11 @@
 // Thin wrapper that delegates to the controller implementation
 import { runController } from "../../controllers/runController.js";
 
-export async function runCmd(props: { dirArg?: string; profile?: string; intro?: boolean }) {
+export async function runCmd(props: {
+  dirArg?: string;
+  profile?: string;
+  intro?: boolean;
+}) {
   await runController(props);
 }
 

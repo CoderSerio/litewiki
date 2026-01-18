@@ -1,12 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createConfigStore } from "../../config/store.js";
-import { ensureDir } from "../../utils/fs.js";
-import { listRuns, readLatestRunId, writeLatestRunId } from "../../utils/archive.js";
+import {
+  listRuns,
+  readLatestRunId,
+  writeLatestRunId,
+} from "../../utils/archive.js";
 import { relativePath, shortHash, shortenMiddle } from "../../utils/format.js";
+import { ensureDir } from "../../utils/fs.js";
 import { serveReportOnce } from "../../view/server.js";
-import { selectWithBack, BACK_VALUE, ui } from "../core/ui.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
+import { BACK_VALUE, selectWithBack, ui } from "../core/ui.js";
 
 export type ReportsAction = "view" | "delete";
 
@@ -15,7 +19,11 @@ function formatTime(iso: string) {
   return s ? s.replace("T", " ").replace("Z", "").slice(0, 16) : "";
 }
 
-function formatProject(meta: { repoRoot?: string; targetPath: string; repoKey: string }) {
+function formatProject(meta: {
+  repoRoot?: string;
+  targetPath: string;
+  repoKey: string;
+}) {
   const project = path.basename(meta.repoRoot || meta.targetPath || "");
   const h6 = shortHash(meta.repoKey, 6);
   return project ? `${project}(${h6})` : `(${h6})`;
@@ -34,18 +42,31 @@ async function resolveTargetDir(raw?: string) {
   return abs;
 }
 
-export async function reportsController(props: { action?: ReportsAction; dir?: string; limit?: number; intro?: boolean }) {
+export async function reportsController(props: {
+  action?: ReportsAction;
+  dir?: string;
+  limit?: number;
+  intro?: boolean;
+}) {
   if (props.intro !== false) ui.intro("litewiki");
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.archivesDir);
-  const limit = Number.isFinite(props.limit as any) ? (props.limit as number) : 20;
-  const currentDir = await resolveTargetDir(props.dir).catch(() => process.cwd());
+  const limit = Number.isFinite(props.limit as any)
+    ? (props.limit as number)
+    : 20;
+  const currentDir = await resolveTargetDir(props.dir).catch(() =>
+    process.cwd(),
+  );
 
-  async function findBrokenRunDirs(targetDir: string): Promise<{ dir: string; metaPath: string; reportPath: string }[]> {
+  async function findBrokenRunDirs(
+    targetDir: string,
+  ): Promise<{ dir: string; metaPath: string; reportPath: string }[]> {
     const broken: { dir: string; metaPath: string; reportPath: string }[] = [];
     async function scanUnder(dir: string) {
-      const items = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+      const items = await fs
+        .readdir(dir, { withFileTypes: true })
+        .catch(() => []);
       for (const it of items) {
         if (!it.isDirectory()) continue;
         const runDirPath = path.join(dir, it.name);
@@ -55,7 +76,8 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
           const raw = await fs.readFile(metaPath, "utf-8");
           const meta = JSON.parse(raw);
           // minimal validity: must have runId
-          if (!meta || typeof meta.runId !== "string") throw new Error("invalid meta");
+          if (!meta || typeof meta.runId !== "string")
+            throw new Error("invalid meta");
           // treat missing report.md as broken as well
           await fs.stat(reportPath);
         } catch {
@@ -76,7 +98,13 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
   while (true) {
     const projectsByTarget = new Map<
       string,
-      { targetPath: string; runs: typeof runs; projectDirs: Set<string>; latestAt?: string; displayId?: string }
+      {
+        targetPath: string;
+        runs: typeof runs;
+        projectDirs: Set<string>;
+        latestAt?: string;
+        displayId?: string;
+      }
     >();
     for (const r of runs) {
       const key = r.meta.targetPath || "";
@@ -91,7 +119,8 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
       } else {
         existing.runs.push(r);
         existing.projectDirs.add(path.dirname(r.dir));
-        if (!existing.latestAt || existing.latestAt < r.meta.createdAt) existing.latestAt = r.meta.createdAt;
+        if (!existing.latestAt || existing.latestAt < r.meta.createdAt)
+          existing.latestAt = r.meta.createdAt;
       }
     }
 
@@ -104,10 +133,14 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
     for (const p of projectList) {
       const base = path.basename(p.targetPath || "") || "project";
       p.displayId =
-        (nameCounts.get(base) || 0) > 1 ? `${base}-${shortHash(p.targetPath, 6)}` : base;
+        (nameCounts.get(base) || 0) > 1
+          ? `${base}-${shortHash(p.targetPath, 6)}`
+          : base;
     }
 
-    const current = projectList.find((p) => path.resolve(p.targetPath) === path.resolve(currentDir));
+    const current = projectList.find(
+      (p) => path.resolve(p.targetPath) === path.resolve(currentDir),
+    );
     projectList.sort((a, b) => {
       if (current && a.targetPath === current.targetPath) return -1;
       if (current && b.targetPath === current.targetPath) return 1;
@@ -134,8 +167,16 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
     const action = await selectWithBack<ReportsAction>({
       message: `${proj.displayId || proj.targetPath}`,
       options: [
-        { value: "view", label: "view", hint: "open the latest report in a local browser" },
-        { value: "delete", label: "delete", hint: "remove archived reports for this project" },
+        {
+          value: "view",
+          label: "view",
+          hint: "open the latest report in a local browser",
+        },
+        {
+          value: "delete",
+          label: "delete",
+          hint: "remove archived reports for this project",
+        },
       ],
     });
     if (!action || action === BACK_VALUE) continue;
@@ -144,8 +185,16 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
       const del = await selectWithBack<"all" | "history">({
         message: "Delete reports",
         options: [
-          { value: "all", label: "all", hint: "delete every saved run for this project" },
-          { value: "history", label: "history", hint: "keep the latest run and delete older ones" },
+          {
+            value: "all",
+            label: "all",
+            hint: "delete every saved run for this project",
+          },
+          {
+            value: "history",
+            label: "history",
+            hint: "keep the latest run and delete older ones",
+          },
         ],
       });
       if (!del || del === BACK_VALUE) continue;
@@ -154,7 +203,9 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
           await fs.rm(r.dir, { recursive: true, force: true });
         }
         for (const dir of proj.projectDirs) {
-          const items = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+          const items = await fs
+            .readdir(dir, { withFileTypes: true })
+            .catch(() => []);
           const hasRunDirs = items.some((it) => it.isDirectory());
           if (!hasRunDirs) await fs.rm(dir, { recursive: true, force: true });
         }
@@ -163,25 +214,34 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
       }
       // delete history: keep latest
       const projectDirs = Array.from(proj.projectDirs);
-      const primaryDir = projectDirs.find((d) => d.includes(path.join(conf.archivesDir, "projects")));
+      const primaryDir = projectDirs.find((d) =>
+        d.includes(path.join(conf.archivesDir, "projects")),
+      );
       const projectId = primaryDir ? path.basename(primaryDir) : null;
-      const latestId = projectId ? await readLatestRunId(conf.archivesDir, projectId) : null;
-      const sorted = [...proj.runs].sort((a, b) => (a.meta.createdAt < b.meta.createdAt ? 1 : -1));
+      const latestId = projectId
+        ? await readLatestRunId(conf.archivesDir, projectId)
+        : null;
+      const sorted = [...proj.runs].sort((a, b) =>
+        a.meta.createdAt < b.meta.createdAt ? 1 : -1,
+      );
       const keep = latestId || sorted[0]?.meta.runId;
       for (const r of proj.runs) {
         if (r.meta.runId === keep) continue;
         await fs.rm(r.dir, { recursive: true, force: true });
       }
-      if (projectId && keep) await writeLatestRunId(conf.archivesDir, projectId, keep);
+      if (projectId && keep)
+        await writeLatestRunId(conf.archivesDir, projectId, keep);
       ui.log.success("Deleted history; kept latest");
       return await reportsController({ ...props, intro: false });
     }
 
     // view runs
     const primaryDir = Array.from(proj.projectDirs).find((d) =>
-      d.includes(path.join(conf.archivesDir, "projects"))
+      d.includes(path.join(conf.archivesDir, "projects")),
     );
-    const broken = await findBrokenRunDirs(primaryDir || Array.from(proj.projectDirs)[0] || conf.archivesDir);
+    const broken = await findBrokenRunDirs(
+      primaryDir || Array.from(proj.projectDirs)[0] || conf.archivesDir,
+    );
     const runOptions = proj.runs
       .sort((a, b) => (a.meta.createdAt < b.meta.createdAt ? 1 : -1))
       .slice(0, limit)
@@ -208,11 +268,18 @@ export async function reportsController(props: { action?: ReportsAction; dir?: s
     if (!chosen || chosen === BACK_VALUE) continue;
     if (chosen.startsWith("broken::")) {
       const dir = chosen.slice("broken::".length);
-      const ok = await maybeDeleteBrokenPath({ targetPath: dir, isDir: true, reason: "Invalid meta.json or missing report.md" });
+      const ok = await maybeDeleteBrokenPath({
+        targetPath: dir,
+        isDir: true,
+        reason: "Invalid meta.json or missing report.md",
+      });
       if (ok) return await reportsController({ ...props, intro: false });
       continue;
     }
-    const server = await serveReportOnce({ reportPath: chosen, title: "litewiki report" });
+    const server = await serveReportOnce({
+      reportPath: chosen,
+      title: "litewiki report",
+    });
     ui.outro(`Opened in browser: ${server.url}\nPress Ctrl+C to exit preview`);
     const cleanup = () => {
       server.close();
