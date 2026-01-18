@@ -92,7 +92,7 @@ export async function runAgent(props: {
     });
   }
 
-  const toolsMeta = [
+  const toolsMetaBase = [
     tools.listDirectory.meta,
     tools.readFile.meta,
     tools.renderMermaid.meta,
@@ -106,6 +106,10 @@ export async function runAgent(props: {
           "请基于已经查看的信息，给出项目结构的最终总结。不要再调用工具。",
       });
     }
+
+    // Force convergence: in the last 2 iterations, disallow tools.
+    const allowTools = i < maxIterations - 2;
+    const toolsMeta = allowTools ? toolsMetaBase : [];
 
     const resp = (await client.chat({
       model,
@@ -187,5 +191,10 @@ export async function runAgent(props: {
     }
   }
 
-  throw new Error("工具循环未得到最终答案");
+  const last = messages[messages.length - 1];
+  const lastContent =
+    last && typeof last.content === "string" ? last.content.slice(0, 400) : "";
+  throw new Error(
+    `工具循环未得到最终答案 (maxIterations=${maxIterations}). last=${lastContent}`,
+  );
 }
