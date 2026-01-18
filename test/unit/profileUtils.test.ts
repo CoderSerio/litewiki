@@ -56,7 +56,9 @@ test("profile files override builtin defaults when ids match", async (t) => {
   const profiles = await listProfiles(profilesDir);
   const overridden = profiles.find((p) => p.id === "default");
   assert(overridden, "expected overridden default profile");
-  assert.equal(overridden?.source, "file");
+  // user intent: when id matches builtin default, keep source as builtin even if loaded from file
+  assert.equal(overridden?.source, "builtin");
+  assert(overridden?.filePath, "expected filePath to be set for overridden builtin");
   assert.equal(overridden?.systemPrompt, "File version");
   assert.equal(overridden?.version, DEFAULT_PROFILE.version + 1);
 });

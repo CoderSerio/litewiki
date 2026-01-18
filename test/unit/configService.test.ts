@@ -25,6 +25,7 @@ test("config service can persist, list, and delete configs", async (t) => {
     provider: "mock",
     model: "a",
     key: "secret-a",
+    baseUrl: "https://example.com/a",
   });
   await saveConfig(configDir, {
     id: "beta",

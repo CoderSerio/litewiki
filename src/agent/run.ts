@@ -1,5 +1,5 @@
 import type { ToolResult } from "./types.js";
-import type { SiliconFlowClient } from "./siliconflowClient.js";
+import type { ChatCompletionsClient } from "./chatCompletionsClient.js";
 import { parseToolCalls } from "./parseToolCalls.js";
 
 type AnyToolCall = any;
@@ -42,7 +42,7 @@ export async function runAgent(props: {
   cwd: string;
   systemPrompt: string;
   extensions?: string[];
-  client: SiliconFlowClient;
+  client: ChatCompletionsClient;
   model: string;
   tools: AgentTools;
   maxIterations?: number;

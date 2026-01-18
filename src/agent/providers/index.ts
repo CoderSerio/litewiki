@@ -1,7 +1,7 @@
-// Provider router. For now we only support siliconflow, but keep the shape
-// so future providers can be plugged in without touching callers.
+// Provider router. Keep the shape so future providers can be plugged in without touching callers.
 
-import { runDeepWikiAgent as runWithSiliconFlow } from "./siliconflow.js";
+import { runDeepWikiAgent as runWithOpenAiChatCompletions } from "./openaiChatCompletions.js";
+import { normalizeProviderId } from "./providerCatalog.js";
 
 export type RunDeepWikiAgentOptions = {
   systemPrompt?: string;
@@ -14,7 +14,9 @@ export type RunDeepWikiAgentOptions = {
 };
 
 export async function runDeepWikiAgent(cwd: string, opts?: RunDeepWikiAgentOptions) {
-  const provider = (opts?.provider || "siliconflow").toLowerCase();
-  // Only siliconflow for now
-  return await runWithSiliconFlow(cwd, opts as any);
+  const provider = normalizeProviderId(opts?.provider);
+  if (provider === "openai") {
+    return await runWithOpenAiChatCompletions(cwd, opts as any);
+  }
+  throw new Error(`Provider not supported yet: ${provider}`);
 }

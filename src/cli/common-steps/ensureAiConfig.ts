@@ -13,12 +13,28 @@ import {
 import { configController } from "../controllers/configController.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { maybeDeleteBrokenPath } from "./fileOps.js";
+import { PROVIDERS, isProviderSupported, normalizeProviderId } from "../../agent/providers/providerCatalog.js";
+
+function providerOptions() {
+  return PROVIDERS.map((p) => {
+    const label =
+      p.status === "supported"
+        ? p.label
+        : `${p.label} (unsupported)`;
+    const opt: { value: typeof p.id; label: string; hint?: string } = {
+      value: p.id,
+      label,
+    };
+    if (p.hint) opt.hint = p.hint;
+    return opt;
+  });
+}
 
 export type AiConfigLike = {
   provider: string;
   model: string;
   key: string;
-  baseUrl?: string | undefined;
+  baseUrl: string;
 };
 
 export async function ensureAiConfig(): Promise<AiConfigLike | null> {
@@ -34,8 +50,10 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     const all = await listConfigs(conf.configDir);
     const found = all.find((c) => c.id === active);
     if (!found) return null;
-    if (!found.provider || !found.model || !found.key) return null;
-    return found;
+    if (!found.provider || !found.model || !found.key || !found.baseUrl) return null;
+    const provider = normalizeProviderId(found.provider);
+    if (!isProviderSupported(provider)) return null;
+    return { ...found, provider };
   };
 
   const ready = await pickActive();
@@ -162,12 +180,23 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     }
 
     // temp
-    const provider = (await ui.text("provider", process.env.SILICONFLOW_API_KEY ? "siliconflow" : "")) || "siliconflow";
-    const model = await ui.text("model", process.env.SILICONFLOW_MODEL || "");
+    const provider = await ui.select({
+      message: "provider",
+      options: providerOptions(),
+      initialValue: "openai",
+    });
+    if (!provider) return null;
+    if (!isProviderSupported(provider)) {
+      ui.log.warn(`Provider "${provider}" is not supported yet; run will fail for now.`);
+      const ok = await ui.confirm("仍然继续吗？", false);
+      if (!ok) return null;
+    }
+    const model = await ui.text("model");
     if (!model) return null;
-    const key = await ui.text("key", process.env.SILICONFLOW_API_KEY || "");
+    const key = await ui.text("key");
     if (!key) return null;
-    const baseUrl = await ui.text("baseUrl (optional)", process.env.SILICONFLOW_BASE_URL || "");
-    return { provider, model, key, baseUrl: baseUrl || undefined };
+    const baseUrl = await ui.text("baseUrl");
+    if (!baseUrl) return null;
+    return { provider, model, key, baseUrl };
   }
 }

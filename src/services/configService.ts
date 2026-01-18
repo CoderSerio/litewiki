@@ -9,7 +9,7 @@ export const ConfigSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
   key: z.string().min(1),
-  baseUrl: z.string().optional(),
+  baseUrl: z.string().min(1),
 });
 
 export type ConfigItem = z.infer<typeof ConfigSchema> & {
@@ -25,6 +25,8 @@ export async function listConfigs(configDir: string): Promise<ConfigItem[]> {
   const results: ConfigItem[] = [];
   for (const it of ents) {
     if (!it.isFile() || !it.name.endsWith(".json")) continue;
+    // legacy single-config file name; handled by migrateLegacyConfigIfNeeded
+    if (it.name === "config.json") continue;
     const fp = path.join(configDir, it.name);
     try {
       const raw = JSON.parse(await fs.readFile(fp, "utf-8"));
@@ -88,10 +90,10 @@ export async function migrateLegacyConfigIfNeeded(configDir: string) {
     const id = "default";
     const cfg = ConfigSchema.parse({
       id,
-      provider: String(raw?.provider || "siliconflow"),
+      provider: String(raw?.provider || "openai"),
       model: String(raw?.model || ""),
       key: String(raw?.key || ""),
-      baseUrl: raw?.baseUrl ? String(raw.baseUrl) : undefined,
+      baseUrl: String(raw?.baseUrl || ""),
     });
     await saveConfig(configDir, cfg);
     setActiveConfigId(id);

@@ -15,6 +15,22 @@ import { ensureDir } from "../../utils/fs.js";
 import { createConfigStore } from "../../config/store.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { maybeDeleteBrokenPath } from "../common-steps/fileOps.js";
+import { PROVIDERS, isProviderSupported, normalizeProviderId } from "../../agent/providers/providerCatalog.js";
+
+function providerOptions() {
+  return PROVIDERS.map((p) => {
+    const label =
+      p.status === "supported"
+        ? p.label
+        : `${p.label} (unsupported)`;
+    const opt: { value: typeof p.id; label: string; hint?: string } = {
+      value: p.id,
+      label,
+    };
+    if (p.hint) opt.hint = p.hint;
+    return opt;
+  });
+}
 
 export async function configController(props: { intro?: boolean }) {
   if (props.intro !== false) ui.intro("litewiki");
@@ -74,13 +90,24 @@ export async function configController(props: { intro?: boolean }) {
 async function createNewConfigFlow(configDir: string) {
   const id = await ui.text("Config id");
   if (!id) return;
-  const provider = (await ui.text("provider", "siliconflow")) || "siliconflow";
+  const provider = await ui.select({
+    message: "provider",
+    options: providerOptions(),
+    initialValue: "openai",
+  });
+  if (!provider) return;
+  if (!isProviderSupported(provider)) {
+    ui.log.warn(`Provider "${provider}" is not supported yet; saving will make runs fail for now.`);
+    const ok = await ui.confirm("仍然保存该 provider 吗？", false);
+    if (!ok) return;
+  }
   const model = await ui.text("model");
   if (!model) return;
   const key = await ui.text("key");
   if (!key) return;
-  const baseUrl = await ui.text("baseUrl (optional)");
-  await saveConfig(configDir, { id, provider, model, key, baseUrl: baseUrl || undefined });
+  const baseUrl = await ui.text("baseUrl");
+  if (!baseUrl) return;
+  await saveConfig(configDir, { id, provider, model, key, baseUrl });
   setActiveConfigId(id);
   ui.log.success(`Created and activated: ${id}`);
 }
@@ -144,8 +171,17 @@ async function editConfigFlow(configDir: string, cfg: ConfigItem): Promise<Confi
       continue;
     }
     if (sel === "provider") {
-      const v = await ui.text("provider", cfg.provider);
+      const v = await ui.select({
+        message: "provider",
+        options: providerOptions() as any,
+        initialValue: normalizeProviderId(cfg.provider),
+      });
       if (!v) continue;
+      if (!isProviderSupported(v)) {
+        ui.log.warn(`Provider "${v}" is not supported yet; saving will make runs fail for now.`);
+        const ok = await ui.confirm("仍然保存该 provider 吗？", false);
+        if (!ok) continue;
+      }
       cfg = await saveConfig(configDir, { ...cfg, provider: v });
       ui.log.success("Updated provider");
       continue;
@@ -165,8 +201,9 @@ async function editConfigFlow(configDir: string, cfg: ConfigItem): Promise<Confi
       continue;
     }
     if (sel === "baseUrl") {
-      const v = await ui.text("baseUrl (optional)", cfg.baseUrl || "");
-      cfg = await saveConfig(configDir, { ...cfg, baseUrl: v || undefined });
+      const v = await ui.text("baseUrl", cfg.baseUrl || "");
+      if (!v) continue;
+      cfg = await saveConfig(configDir, { ...cfg, baseUrl: v });
       ui.log.success("Updated baseUrl");
       continue;
     }

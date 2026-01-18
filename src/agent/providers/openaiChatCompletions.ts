@@ -1,9 +1,6 @@
 import { listDirectoryTool, readFileTool, renderMermaidTool } from "../tools/index.js";
-import { createSiliconFlowClient } from "../siliconflowClient.js";
+import { createChatCompletionsClient } from "../chatCompletionsClient.js";
 import { runAgent } from "../run.js";
-
-export const DEFAULT_BASE_URL = "https://api.siliconflow.cn/v1/chat/completions";
-export const DEFAULT_MODEL = "Pro/zai-org/GLM-4.7";
 
 export async function runDeepWikiAgent(
   cwd: string,
@@ -17,13 +14,16 @@ export async function runDeepWikiAgent(
     model?: string;
   }
 ) {
-  const apiKey = opts?.apiKey || process.env.SILICONFLOW_API_KEY;
-  if (!apiKey) throw new Error("SILICONFLOW_API_KEY is not set ❌");
+  const apiKey = opts?.apiKey;
+  if (!apiKey) throw new Error("apiKey is required ❌");
 
-  const baseUrl = opts?.baseUrl || process.env.SILICONFLOW_BASE_URL || DEFAULT_BASE_URL;
-  const model = opts?.model || process.env.SILICONFLOW_MODEL || DEFAULT_MODEL;
+  const baseUrl = opts?.baseUrl;
+  if (!baseUrl) throw new Error("baseUrl is required ❌");
 
-  const client = createSiliconFlowClient({ apiKey, baseUrl });
+  const model = opts?.model;
+  if (!model) throw new Error("model is required ❌");
+
+  const client = createChatCompletionsClient({ apiKey, baseUrl });
 
   const agentArgs: {
     cwd: string;
