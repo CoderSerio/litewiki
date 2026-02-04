@@ -73,7 +73,7 @@ wiki config
 ```
 
 会提示你输入：
-- `provider`: `openai | anthropic | google | custom`（**目前仅 `openai` 可用**）
+- `provider`: `openai | anthropic | google | custom`（**目前 `openai` 与 `anthropic` 可用**）
 - `model`
 - `baseUrl`
 - `key`
@@ -92,8 +92,9 @@ wiki run .
 provider: "openai" | "anthropic" | "google" | "custom"
 ```
 
-- **已支持**：`openai`
-- **暂未支持（UI 里可以选，但运行会提示 Not supported yet）**：`anthropic`、`google`、`custom`
+- **已支持**：`openai`、`anthropic`
+- **暂未支持（UI 里可以选，但运行会提示 Not supported yet）**：`google`、`custom`
+- **Anthropic 说明**：使用 Messages API；`baseUrl` 请设置为 `https://api.anthropic.com/v1/messages`。
 
 更多差异说明见：[`docs/providers.md`](./docs/providers.md)
 

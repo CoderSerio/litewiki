@@ -17,8 +17,8 @@ export const PROVIDERS: ProviderEntry[] = [
   {
     id: "anthropic",
     label: "anthropic",
-    status: "unsupported",
-    hint: "Not supported yet (Messages API shape differs).",
+    status: "supported",
+    hint: "Supported (Anthropic Messages API).",
   },
   {
     id: "google",

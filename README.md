@@ -73,7 +73,7 @@ wiki config
 ```
 
 You will be asked for:
-- `provider`: `openai | anthropic | google | custom` (**only `openai` works for now**)
+- `provider`: `openai | anthropic | google | custom` (**`openai` and `anthropic` work for now**)
 - `model`
 - `baseUrl`
 - `key`
@@ -92,8 +92,9 @@ We intentionally **flatten** providers to:
 provider: "openai" | "anthropic" | "google" | "custom"
 ```
 
-- **Supported**: `openai`
-- **Not supported yet (but selectable in UI)**: `anthropic`, `google`, `custom`
+- **Supported**: `openai`, `anthropic`
+- **Not supported yet (but selectable in UI)**: `google`, `custom`
+- **Anthropic note**: uses the Messages API; set `baseUrl` to `https://api.anthropic.com/v1/messages`.
 
 See: [`docs/providers.md`](./docs/providers.md)
 
