@@ -1,6 +1,6 @@
 // Provider router. Keep the shape so future providers can be plugged in without touching callers.
 
-import { runDeepWikiAgent as runWithAnthropicMessages } from "./anthropicMessages.js";
+import { runDeepWikiAgent as runWithGoogleGemini } from "./googleGemini.js";
 import { runDeepWikiAgent as runWithOpenAiChatCompletions } from "./openaiChatCompletions.js";
 import { normalizeProviderId } from "./providerCatalog.js";
 
@@ -25,10 +25,10 @@ export async function runDeepWikiAgent(
       opts as unknown as Parameters<typeof runWithOpenAiChatCompletions>[1],
     );
   }
-  if (provider === "anthropic") {
-    return await runWithAnthropicMessages(
+  if (provider === "google") {
+    return await runWithGoogleGemini(
       cwd,
-      opts as unknown as Parameters<typeof runWithAnthropicMessages>[1],
+      opts as unknown as Parameters<typeof runWithGoogleGemini>[1],
     );
   }
   throw new Error(`Provider not supported yet: ${provider}`);

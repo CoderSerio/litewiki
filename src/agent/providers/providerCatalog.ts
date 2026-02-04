@@ -12,19 +12,19 @@ export const PROVIDERS: ProviderEntry[] = [
     id: "openai",
     label: "openai",
     status: "supported",
-    hint: "Supported (Chat Completions / OpenAI-compatible)",
+    hint: "Chat Completions / OpenAI-compatible",
   },
   {
     id: "anthropic",
     label: "anthropic",
     status: "supported",
-    hint: "Supported (Anthropic Messages API).",
+    hint: "Anthropic Messages API",
   },
   {
     id: "google",
     label: "google",
-    status: "unsupported",
-    hint: "Not supported yet (Gemini generateContent shape differs).",
+    status: "supported",
+    hint: "Gemini generateContent",
   },
   {
     id: "custom",
