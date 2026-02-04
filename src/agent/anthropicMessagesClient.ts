@@ -69,9 +69,9 @@ export function toAnthropicTools(tools: unknown[]): AnthropicTool[] {
     .filter((tool) => tool?.type === "function" && tool.function?.name)
     .map((tool) => ({
       name: String(tool.function?.name || ""),
-      description: tool.function?.description,
+      description: tool.function?.description ?? undefined,
       input_schema: tool.function?.parameters,
-    }));
+    })) as AnthropicTool[];
 }
 
 function extractText(content: unknown): string {
@@ -164,7 +164,11 @@ export function toAnthropicMessages(messages: OpenAiMessage[]): {
   }
 
   const system = systemParts.length ? systemParts.join("\n\n") : undefined;
-  return { system, messages: out };
+  const result: { system?: string; messages: AnthropicMessage[] } = {
+    messages: out,
+  };
+  if (system) result.system = system;
+  return result;
 }
 
 export function toOpenAiChatResponse(
@@ -184,7 +188,8 @@ export function toOpenAiChatResponse(
         name: String(b.name || ""),
         arguments: JSON.stringify(b.input ?? {}),
       },
-    }));
+    }))
+    .filter((tc) => tc.id !== undefined);
 
   return {
     choices: [
@@ -192,7 +197,7 @@ export function toOpenAiChatResponse(
         message: {
           role: "assistant",
           content: text,
-          tool_calls: toolCalls.length ? toolCalls : undefined,
+          tool_calls: toolCalls.length ? (toolCalls as any) : undefined,
         },
       },
     ],

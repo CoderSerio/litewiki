@@ -80,16 +80,19 @@ test("anthropic client maps tools and tool calls", async (t) => {
   })) as any;
 
   assert.ok(seenRequest);
-  assert.equal(seenRequest?.url, "https://api.anthropic.com/v1/messages");
-  assert.equal(seenRequest?.body?.system, "sys");
-  assert.equal(seenRequest?.body?.tools?.[0]?.name, "readFile");
-  assert.equal(seenRequest?.body?.messages?.[1]?.role, "assistant");
   assert.equal(
-    seenRequest?.body?.messages?.[1]?.content?.[0]?.type,
+    (seenRequest as any)?.url,
+    "https://api.anthropic.com/v1/messages",
+  );
+  assert.equal((seenRequest as any)?.body?.system, "sys");
+  assert.equal((seenRequest as any)?.body?.tools?.[0]?.name, "readFile");
+  assert.equal((seenRequest as any)?.body?.messages?.[1]?.role, "assistant");
+  assert.equal(
+    (seenRequest as any)?.body?.messages?.[1]?.content?.[0]?.type,
     "tool_use",
   );
   assert.equal(
-    seenRequest?.body?.messages?.[2]?.content?.[0]?.type,
+    (seenRequest as any)?.body?.messages?.[2]?.content?.[0]?.type,
     "tool_result",
   );
 
