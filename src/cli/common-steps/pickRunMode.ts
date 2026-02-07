@@ -1,16 +1,21 @@
 import { ui } from "../core/ui.js";
+import { t } from "../../i18n/index.js";
 
 export type RunMode = "fresh" | "incremental";
 
 export async function pickRunMode(): Promise<RunMode | null> {
   const mode = await ui.select<RunMode>({
-    message: "Run mode",
+    message: t("pickMode.message"),
     options: [
-      { value: "fresh", label: "fresh", hint: "Generate from scratch" },
+      {
+        value: "fresh",
+        label: t("pickMode.fresh"),
+        hint: t("pickMode.fresh.hint"),
+      },
       {
         value: "incremental",
-        label: "incremental",
-        hint: "Incrementally update based on previous report",
+        label: t("pickMode.incremental"),
+        hint: t("pickMode.incremental.hint"),
       },
     ],
     initialValue: "fresh",

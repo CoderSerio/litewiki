@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createConfigStore } from "../../config/store.js";
+import { t } from "../../i18n/index.js";
 import {
   listRuns,
   readLatestRunId,
@@ -48,7 +49,7 @@ export async function reportsController(props: {
   limit?: number;
   intro?: boolean;
 }) {
-  if (props.intro !== false) ui.intro("litewiki");
+  if (props.intro !== false) ui.intro(t("cli.title"));
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.archivesDir);
@@ -91,7 +92,7 @@ export async function reportsController(props: {
 
   const runs = await listRuns(conf.archivesDir);
   if (runs.length === 0) {
-    ui.outro("No archived reports found");
+    ui.outro(t("report.none"));
     return;
   }
 
@@ -157,7 +158,7 @@ export async function reportsController(props: {
     }));
 
     const chosenProject = await selectWithBack<string>({
-      message: "Reports",
+      message: t("report.title"),
       options: projectOptions,
     });
     if (!chosenProject || chosenProject === BACK_VALUE) return;
@@ -169,13 +170,13 @@ export async function reportsController(props: {
       options: [
         {
           value: "view",
-          label: "view",
-          hint: "open the latest report in a local browser",
+          label: t("report.view"),
+          hint: t("report.view.hint"),
         },
         {
           value: "delete",
-          label: "delete",
-          hint: "remove archived reports for this project",
+          label: t("report.delete"),
+          hint: t("report.delete.hint"),
         },
       ],
     });
@@ -183,17 +184,17 @@ export async function reportsController(props: {
 
     if (action === "delete") {
       const del = await selectWithBack<"all" | "history">({
-        message: "Delete reports",
+        message: t("report.delete.title"),
         options: [
           {
             value: "all",
-            label: "all",
-            hint: "delete every saved run for this project",
+            label: t("report.delete.all"),
+            hint: t("report.delete.all.hint"),
           },
           {
             value: "history",
-            label: "history",
-            hint: "keep the latest run and delete older ones",
+            label: t("report.delete.history"),
+            hint: t("report.delete.history.hint"),
           },
         ],
       });
@@ -209,7 +210,7 @@ export async function reportsController(props: {
           const hasRunDirs = items.some((it) => it.isDirectory());
           if (!hasRunDirs) await fs.rm(dir, { recursive: true, force: true });
         }
-        ui.log.success("Deleted reports for this project");
+        ui.log.success(t("report.deleted"));
         return await reportsController({ ...props, intro: false });
       }
       // delete history: keep latest
@@ -231,7 +232,7 @@ export async function reportsController(props: {
       }
       if (projectId && keep)
         await writeLatestRunId(conf.archivesDir, projectId, keep);
-      ui.log.success("Deleted history; kept latest");
+      ui.log.success(t("report.deleted.history"));
       return await reportsController({ ...props, intro: false });
     }
 
@@ -262,7 +263,7 @@ export async function reportsController(props: {
       });
     }
     const chosen = await selectWithBack<string>({
-      message: "Pick one to preview",
+      message: t("report.pick"),
       options: runOptions,
     });
     if (!chosen || chosen === BACK_VALUE) continue;
@@ -271,7 +272,7 @@ export async function reportsController(props: {
       const ok = await maybeDeleteBrokenPath({
         targetPath: dir,
         isDir: true,
-        reason: "Invalid meta.json or missing report.md",
+        reason: t("report.broken.reason"),
       });
       if (ok) return await reportsController({ ...props, intro: false });
       continue;
@@ -280,7 +281,7 @@ export async function reportsController(props: {
       reportPath: chosen,
       title: "litewiki report",
     });
-    ui.outro(`Opened in browser: ${server.url}\nPress Ctrl+C to exit preview`);
+    ui.outro(t("report.opened", { url: server.url }));
     const cleanup = () => {
       server.close();
       process.exit(0);

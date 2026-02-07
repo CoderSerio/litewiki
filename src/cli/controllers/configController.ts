@@ -6,6 +6,7 @@ import {
   normalizeProviderId,
 } from "../../agent/providers/providerCatalog.js";
 import { createConfigStore } from "../../config/store.js";
+import { SUPPORTED_LOCALES, setLocale, t } from "../../i18n/index.js";
 import {
   type ConfigItem,
   deleteConfig,
@@ -35,7 +36,7 @@ function providerOptions() {
 }
 
 export async function configController(props: { intro?: boolean }) {
-  if (props.intro !== false) ui.intro("litewiki");
+  if (props.intro !== false) ui.intro(t("cli.title"));
   const store = createConfigStore();
   const conf = store.readAll();
   await ensureDir(conf.configDir);
@@ -59,19 +60,24 @@ export async function configController(props: { intro?: boolean }) {
     }
     const opts = items.map((c) => ({
       value: c.id,
-      label: c.id === activeId ? `${c.id} (active)` : c.id,
+      label: c.id === activeId ? t("config.active", { id: c.id }) : c.id,
       hint: `${c.provider} / ${c.model} — ${shortenMiddle(relativePath(conf.configDir, c.filePath), 60)}`,
     }));
     const chosen = await selectWithBack<string>({
-      message: "Configs",
+      message: t("config.title"),
       options: [
         ...opts,
         ...broken.map((b) => ({
           value: `broken::${b.filePath}`,
-          label: `[broken] ${b.id}`,
+          label: `${t("config.broken")} ${b.id}`,
           hint: shortenMiddle(relativePath(conf.configDir, b.filePath), 60),
         })),
-        { value: "__new__", label: "+ new", hint: "create a config" } as any,
+        {
+          value: "__new__",
+          label: t("config.new"),
+          hint: t("config.new.hint"),
+        } as any,
+        { value: "__locale__", label: t("cli.action.language"), hint: t("cli.action.language.hint") } as any,
       ],
     });
     if (chosen === null) return; // cancel
@@ -81,12 +87,23 @@ export async function configController(props: { intro?: boolean }) {
       const fp = value.slice("broken::".length);
       await maybeDeleteBrokenPath({
         targetPath: fp,
-        reason: "Invalid or unparsable config JSON",
+        reason: t("config.broken.reason"),
       });
       continue; // refresh
     }
     if (value === "__new__") {
       await createNewConfigFlow(conf.configDir);
+      continue;
+    }
+    if (value === "__locale__") {
+      const locale = await ui.select<any>({
+        message: t("language.select"),
+        options: SUPPORTED_LOCALES,
+      });
+      if (locale) {
+        setLocale(locale);
+        ui.log.success(t("language.changed"));
+      }
       continue;
     }
     const picked = items.find((i) => i.id === value);
@@ -96,30 +113,31 @@ export async function configController(props: { intro?: boolean }) {
 }
 
 async function createNewConfigFlow(configDir: string) {
-  const id = await ui.text("Config id");
+  const id = await ui.text(t("config.id"));
   if (!id) return;
   const provider = await ui.select({
-    message: "provider",
+    message: t("config.provider"),
     options: providerOptions(),
     initialValue: "openai",
   });
   if (!provider) return;
   if (!isProviderSupported(provider)) {
-    ui.log.warn(
-      `Provider "${provider}" is not supported yet; saving will make runs fail for now.`,
+    ui.log.warn(t("config.provider.unsupported", { provider }));
+    const ok = await ui.confirm(
+      t("config.provider.unsupported.confirm"),
+      false,
     );
-    const ok = await ui.confirm("仍然保存该 provider 吗？", false);
     if (!ok) return;
   }
-  const model = await ui.text("model");
+  const model = await ui.text(t("config.model"));
   if (!model) return;
-  const key = await ui.text("key");
+  const key = await ui.text(t("config.key"));
   if (!key) return;
-  const baseUrl = await ui.text("baseUrl");
+  const baseUrl = await ui.text(t("config.baseUrl"));
   if (!baseUrl) return;
   await saveConfig(configDir, { id, provider, model, key, baseUrl });
   setActiveConfigId(id);
-  ui.log.success(`Created and activated: ${id}`);
+  ui.log.success(t("config.created", { id }));
 }
 
 async function configDetailFlow(configDir: string, cfg: ConfigItem) {
@@ -129,15 +147,19 @@ async function configDetailFlow(configDir: string, cfg: ConfigItem) {
       options: [
         {
           value: "activate",
-          label: "activate",
-          hint: "set this config as active",
+          label: t("config.activate"),
+          hint: t("config.activate.hint"),
         },
         {
           value: "edit",
-          label: "edit",
-          hint: "change provider, model, or keys",
+          label: t("config.edit"),
+          hint: t("config.edit.hint"),
         },
-        { value: "delete", label: "delete", hint: "remove this config file" },
+        {
+          value: "delete",
+          label: t("config.delete"),
+          hint: t("config.delete.hint"),
+        },
       ],
     });
     if (!chosen || chosen === BACK_VALUE) return;
@@ -145,12 +167,12 @@ async function configDetailFlow(configDir: string, cfg: ConfigItem) {
 
     if (action === "activate") {
       setActiveConfigId(cfg.id);
-      ui.log.success("Activated");
+      ui.log.success(t("config.activated"));
       return;
     }
     if (action === "delete") {
       await deleteConfig(configDir, cfg.id);
-      ui.log.success("Deleted");
+      ui.log.success(t("config.deleted"));
       return;
     }
     if (action === "edit") {
@@ -169,36 +191,43 @@ async function editConfigFlow(
     const sel = await selectWithBack<
       "id" | "provider" | "model" | "key" | "baseUrl" | "done"
     >({
-      message: `Edit ${cfg.id}`,
+      message: t("config.edit.title", { id: cfg.id }),
       options: [
-        { value: "id", label: `id: ${cfg.id}`, hint: "rename this config" },
+        {
+          value: "id",
+          label: t("config.edit.id", { value: cfg.id }),
+          hint: t("config.edit.id.hint"),
+        },
         {
           value: "provider",
-          label: `provider: ${cfg.provider}`,
-          hint: "set the provider id",
+          label: t("config.edit.provider", { value: cfg.provider }),
+          hint: t("config.edit.provider.hint"),
         },
         {
           value: "model",
-          label: `model: ${cfg.model}`,
-          hint: "set the default model",
+          label: t("config.edit.model", { value: cfg.model }),
+          hint: t("config.edit.model.hint"),
         },
         {
           value: "key",
-          label: `key: ${cfg.key ? "(set)" : "(empty)"}`,
-          hint: "update the api key",
+          label: t("config.edit.key", {
+            value: cfg.key ? t("common.set") : t("common.empty"),
+          }),
+          hint: t("config.edit.key.hint"),
         },
         {
           value: "baseUrl",
-          label: `baseUrl: ${cfg.baseUrl || "(empty)"}`,
-          hint: "override the base url",
+          label: t("config.edit.baseUrl", {
+            value: cfg.baseUrl || t("common.empty"),
+          }),
+          hint: t("config.edit.baseUrl.hint"),
         },
-        // { value: "done", label: "✓ Done" },
       ],
     });
     if (!sel || sel === BACK_VALUE || sel === "done") return cfg;
 
     if (sel === "id") {
-      const newId = await ui.text("New id", cfg.id);
+      const newId = await ui.text(t("config.edit.newId"), cfg.id);
       if (!newId || newId === cfg.id) continue;
       // rename: create new file then delete old
       await saveConfig(configDir, { ...cfg, id: newId });
@@ -208,46 +237,47 @@ async function editConfigFlow(
         id: newId,
         filePath: cfg.filePath.replace(/[^/\\]+\.json$/, `${newId}.json`),
       };
-      ui.log.success("Renamed");
+      ui.log.success(t("config.renamed"));
       continue;
     }
     if (sel === "provider") {
       const v = await ui.select({
-        message: "provider",
+        message: t("config.provider"),
         options: providerOptions() as any,
         initialValue: normalizeProviderId(cfg.provider),
       });
       if (!v) continue;
       if (!isProviderSupported(v)) {
-        ui.log.warn(
-          `Provider "${v}" is not supported yet; saving will make runs fail for now.`,
+        ui.log.warn(t("config.provider.unsupported", { provider: v }));
+        const ok = await ui.confirm(
+          t("config.provider.unsupported.confirm"),
+          false,
         );
-        const ok = await ui.confirm("仍然保存该 provider 吗？", false);
         if (!ok) continue;
       }
       cfg = await saveConfig(configDir, { ...cfg, provider: v });
-      ui.log.success("Updated provider");
+      ui.log.success(t("config.updated.provider"));
       continue;
     }
     if (sel === "model") {
-      const v = await ui.text("model", cfg.model);
+      const v = await ui.text(t("config.model"), cfg.model);
       if (!v) continue;
       cfg = await saveConfig(configDir, { ...cfg, model: v });
-      ui.log.success("Updated model");
+      ui.log.success(t("config.updated.model"));
       continue;
     }
     if (sel === "key") {
-      const v = await ui.text("key", cfg.key);
+      const v = await ui.text(t("config.key"), cfg.key);
       if (!v) continue;
       cfg = await saveConfig(configDir, { ...cfg, key: v });
-      ui.log.success("Updated key");
+      ui.log.success(t("config.updated.key"));
       continue;
     }
     if (sel === "baseUrl") {
-      const v = await ui.text("baseUrl", cfg.baseUrl || "");
+      const v = await ui.text(t("config.baseUrl"), cfg.baseUrl || "");
       if (!v) continue;
       cfg = await saveConfig(configDir, { ...cfg, baseUrl: v });
-      ui.log.success("Updated baseUrl");
+      ui.log.success(t("config.updated.baseUrl"));
       continue;
     }
   }

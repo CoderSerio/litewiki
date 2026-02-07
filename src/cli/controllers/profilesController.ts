@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createConfigStore } from "../../config/store.js";
+import { t } from "../../i18n/index.js";
 import { relativePath, shortenMiddle } from "../../utils/format.js";
 import { ensureDir } from "../../utils/fs.js";
 import {
@@ -15,7 +16,7 @@ import { ui } from "../core/ui.js";
 import { BACK_VALUE, selectWithBack } from "../core/ui.js";
 
 export async function profilesController(props: { intro?: boolean }) {
-  if (props.intro !== false) ui.intro("litewiki");
+  if (props.intro !== false) ui.intro(t("cli.title"));
 
   const store = createConfigStore();
   const conf = store.readAll();
@@ -56,7 +57,7 @@ export async function profilesController(props: { intro?: boolean }) {
         label: p.id,
         hint:
           p.id === "default" || p.source === "builtin"
-            ? "builtin, read-only"
+            ? t("profile.builtin")
             : shortenMiddle(
                 relativePath(conf.profilesDir, p.filePath || ""),
                 60,
@@ -64,18 +65,18 @@ export async function profilesController(props: { intro?: boolean }) {
       })),
       ...broken.map((b) => ({
         value: `broken::${b.filePath}`,
-        label: `[broken] ${b.id}`,
+        label: `${t("profile.broken")} ${b.id}`,
         hint: shortenMiddle(relativePath(conf.profilesDir, b.filePath), 60),
       })),
       {
         value: "__new__",
-        label: "+ new profile",
-        hint: "create and edit a new profile file",
+        label: t("profile.new"),
+        hint: t("profile.new.hint"),
       },
     ];
 
     const chosen = await selectWithBack<string>({
-      message: "Select a profile",
+      message: t("profile.select"),
       options,
       initialValue: conf.defaultProfileId,
     });
@@ -88,7 +89,7 @@ export async function profilesController(props: { intro?: boolean }) {
       const fp = chosen.slice("broken::".length);
       const deleted = await maybeDeleteBrokenPath({
         targetPath: fp,
-        reason: "Invalid or unparsable profile JSON",
+        reason: t("profile.broken.reason"),
       });
       if (deleted) {
         // builtin default lives in memory; no file bootstrap needed

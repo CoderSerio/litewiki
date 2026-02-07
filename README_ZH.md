@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.md">English README</a>
+  <a href="./README.md">English</a> | <a href="./README_ES.md">Español</a>
 </p>
 
 ## 功能特性

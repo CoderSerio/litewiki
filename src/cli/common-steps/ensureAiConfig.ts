@@ -6,6 +6,7 @@ import {
   normalizeProviderId,
 } from "../../agent/providers/providerCatalog.js";
 import { createConfigStore } from "../../config/store.js";
+import { t } from "../../i18n/index.js";
 import {
   type ConfigItem,
   ConfigSchema,
@@ -100,7 +101,7 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
     const brokenSummary = await listBrokenConfigs();
     const brokenWithError = brokenSummary.filter((b) => b.error);
     for (const it of brokenWithError) {
-      ui.log.error(`Broken config JSON: ${it.filePath}\n${it.error}`);
+      ui.log.error(`${t("config.broken.reason")}: ${it.filePath}\n${it.error}`);
     }
     const validConfigs = await listConfigs(conf.configDir);
     if (
@@ -108,15 +109,12 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
       brokenSummary.length === 0 &&
       !shownNoConfigHint
     ) {
-      ui.log.error("No valid config found");
-      ui.log.info(`Configs dir: ${conf.configDir}`);
-      ui.log.info(`Profiles dir: ${conf.profilesDir}`);
-      ui.log.info("Please create a config for your model provider.");
+      ui.log.error(t("ensureConfig.noValid"));
+      ui.log.info(t("ensureConfig.configsDir", { path: conf.configDir }));
+      ui.log.info(t("ensureConfig.profilesDir", { path: conf.profilesDir }));
+      ui.log.info(t("ensureConfig.createHint"));
       shownNoConfigHint = true;
-      const open = await ui.confirm(
-        "No config found. Open config manager to create one?",
-        true,
-      );
+      const open = await ui.confirm(t("ensureConfig.openManager"), true);
       if (open) {
         await configController({ intro: true });
         const again = await pickActive();
@@ -124,22 +122,22 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
       }
     }
     const choice = await selectWithBack<"manage" | "temp" | "clean">({
-      message: "No valid config. How to continue?",
+      message: t("ensureConfig.howToContinue"),
       options: [
         {
           value: "manage",
-          label: "manage configs",
-          hint: "open the config manager to pick, create, and activate",
+          label: t("ensureConfig.manage"),
+          hint: t("ensureConfig.manage.hint"),
         },
         {
           value: "temp",
-          label: "use a temporary config",
-          hint: "input provider/model/key for this run only",
+          label: t("ensureConfig.temp"),
+          hint: t("ensureConfig.temp.hint"),
         },
         {
           value: "clean",
-          label: "clean invalid configs",
-          hint: "delete configs that failed to load",
+          label: t("ensureConfig.clean"),
+          hint: t("ensureConfig.clean.hint"),
         },
       ],
     });
@@ -157,7 +155,7 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
       while (true) {
         const broken = await listBrokenConfigs();
         if (broken.length === 0) {
-          ui.log.info("No invalid configs found");
+          ui.log.info(t("ensureConfig.noInvalid"));
           break;
         }
         if (broken.length === 1) {
@@ -170,7 +168,7 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
           continue;
         }
         const pick = await selectWithBack<string>({
-          message: "Pick a broken config to delete",
+          message: t("ensureConfig.pickBroken"),
           options: broken.map((b) => ({
             value: b.filePath,
             label: `[broken] ${b.id}`,
@@ -185,10 +183,7 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
       }
       const again = await pickActive();
       if (again) return again;
-      const rebuild = await ui.confirm(
-        "No valid configs remain. Open config manager to create one?",
-        true,
-      );
+      const rebuild = await ui.confirm(t("ensureConfig.noRemain"), true);
       if (rebuild) {
         await configController({ intro: true });
         const after = await pickActive();
@@ -199,23 +194,24 @@ export async function ensureAiConfig(): Promise<AiConfigLike | null> {
 
     // temp
     const provider = await ui.select({
-      message: "provider",
+      message: t("config.provider"),
       options: providerOptions(),
       initialValue: "openai",
     });
     if (!provider) return null;
     if (!isProviderSupported(provider)) {
-      ui.log.warn(
-        `Provider "${provider}" is not supported yet; run will fail for now.`,
+      ui.log.warn(t("ensureConfig.provider.unsupported", { provider }));
+      const ok = await ui.confirm(
+        t("ensureConfig.provider.unsupported.confirm"),
+        false,
       );
-      const ok = await ui.confirm("仍然继续吗？", false);
       if (!ok) return null;
     }
-    const model = await ui.text("model");
+    const model = await ui.text(t("config.model"));
     if (!model) return null;
-    const key = await ui.text("key");
+    const key = await ui.text(t("config.key"));
     if (!key) return null;
-    const baseUrl = await ui.text("baseUrl");
+    const baseUrl = await ui.text(t("config.baseUrl"));
     if (!baseUrl) return null;
     return { provider, model, key, baseUrl };
   }

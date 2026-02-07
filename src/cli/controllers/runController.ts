@@ -1,6 +1,7 @@
 import path from "node:path";
 import { runDeepWikiAgent } from "../../agent/providers/index.js";
 import { createConfigStore } from "../../config/store.js";
+import { t } from "../../i18n/index.js";
 import { normalizeMarkdown } from "../../utils/agent.js";
 import * as arch from "../../utils/archive.js";
 import { ensureDir } from "../../utils/fs.js";
@@ -43,7 +44,7 @@ export async function runController(props: {
   profile?: string;
   intro?: boolean;
 }) {
-  if (props.intro !== false) ui.intro("litewiki");
+  if (props.intro !== false) ui.intro(t("cli.title"));
 
   const store = createConfigStore();
   const conf = store.readAll();
@@ -85,11 +86,14 @@ export async function runController(props: {
         ctx.dirty == null
           ? null
           : ctx.dirty
-            ? `Status: dirty`
-            : `Status: clean`,
+            ? t("run.status.dirty")
+            : t("run.status.clean"),
         ctx.remote ? `Remote: ${ctx.remote}` : null,
       ].filter(Boolean);
-      const ok = await ui.confirm(`${descParts.join("\n")}\n\nProceed?`, false);
+      const ok = await ui.confirm(
+        `${descParts.join("\n")}\n\n${t("run.proceed")}`,
+        false,
+      );
       return ok ? next() : exit();
     },
     // 2. pick profile (with back)
@@ -130,10 +134,7 @@ export async function runController(props: {
         ? await arch.readLatestReport(conf.archivesDir, projectId)
         : await arch.readLegacyLatestReport(conf.archivesDir, repoKey);
       if (!prior) {
-        const ok = await ui.confirm(
-          "No previous report found. Switch to fresh?",
-          true,
-        );
+        const ok = await ui.confirm(t("run.noPrior"), true);
         if (!ok) return back();
         ctx.priorReport = null;
         ctx.mode = "fresh";
@@ -159,7 +160,7 @@ export async function runController(props: {
       const mode = ctx.mode;
       const repoKey = ctx.repoKey;
 
-      const spin = ui.spinner("Running agent...");
+      const spin = ui.spinner(t("run.spinner"));
       try {
         const prof = await (
           await import("../commands/profile/utils.js")
@@ -182,7 +183,7 @@ export async function runController(props: {
         if (aiConfig.model) agentOpts.model = aiConfig.model;
 
         const report = await runDeepWikiAgent(targetDir, agentOpts);
-        spin.stop("Done");
+        spin.stop(t("run.done"));
 
         const reportMd = normalizeMarkdown(report);
         const runId = arch.createRunId();
@@ -205,10 +206,12 @@ export async function runController(props: {
           reportMarkdown: reportMd,
         });
 
-        ui.outro(`Archived to: ${info.reportPath}\n\n${reportMd}`);
+        ui.outro(
+          `${t("run.archived", { path: info.reportPath })}\n\n${reportMd}`,
+        );
         return exit();
       } catch (e) {
-        spin.stop("Failed");
+        spin.stop(t("run.failed"));
         ui.outro(String(e));
         process.exitCode = 1;
         return exit();
