@@ -77,7 +77,11 @@ export async function configController(props: { intro?: boolean }) {
           label: t("config.new"),
           hint: t("config.new.hint"),
         } as any,
-        { value: "__locale__", label: t("cli.action.language"), hint: t("cli.action.language.hint") } as any,
+        {
+          value: "__locale__",
+          label: t("cli.action.language"),
+          hint: t("cli.action.language.hint"),
+        } as any,
       ],
     });
     if (chosen === null) return; // cancel
