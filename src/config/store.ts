@@ -11,6 +11,7 @@ const StoreSchema = z.object({
   defaultProfileId: z.string(),
   lastProfileId: z.string().optional(),
   activeConfigId: z.string().optional(),
+  locale: z.string().optional(),
 });
 
 export type StoreData = z.infer<typeof StoreSchema>;

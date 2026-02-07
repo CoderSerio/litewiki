@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import path from "node:path";
+import { t } from "../../i18n/index.js";
 import { ui } from "../core/ui.js";
 
 /** Ask user whether to delete a broken file or directory. Returns true if deleted. */
@@ -8,20 +8,14 @@ export async function maybeDeleteBrokenPath(opts: {
   reason?: string;
   isDir?: boolean; // if not provided, inferred by fs.stat
 }): Promise<boolean> {
-  const inferredIsDir = await fs
-    .stat(opts.targetPath)
-    .then((st) => st.isDirectory())
-    .catch(() => Boolean(opts.isDir));
-  const kind = inferredIsDir ? "directory" : "file";
-  const reason = opts.reason ? `\nReason: ${opts.reason}` : "";
   const ok = await ui.confirm(
-    `This ${kind} looks broken:${reason}\n\n${opts.targetPath}\n\nDelete it?`,
+    `${opts.reason ? opts.reason + "\n\n" : ""}${opts.targetPath}\n\n${t("fileOps.deleteConfirm")}`,
     false,
   );
   if (!ok) return false;
   try {
     await fs.rm(opts.targetPath, { recursive: true, force: true });
-    ui.log.success(`Deleted: ${opts.targetPath}`);
+    ui.log.success(t("fileOps.deleted", { path: opts.targetPath }));
     return true;
   } catch (e) {
     ui.log.error(`Delete failed: ${String(e)}`);
