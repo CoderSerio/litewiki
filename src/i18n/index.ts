@@ -18,14 +18,14 @@ export const SUPPORTED_LOCALES: { value: Locale; label: string }[] = [
 export function getLocale(): Locale {
   const store = createConfigStore();
   const conf = store.readAll();
-  const raw = (conf as any).locale as string | undefined;
+  const raw = conf.locale;
   if (raw && raw in locales) return raw as Locale;
   return "en";
 }
 
 export function setLocale(locale: Locale) {
   const store = createConfigStore();
-  store.write("locale" as any, locale as any);
+  store.write("locale", locale);
 }
 
 export function t(
