@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 import { t } from "../../i18n/index.js";
 import { ui } from "../core/ui.js";
 
@@ -9,10 +8,6 @@ export async function maybeDeleteBrokenPath(opts: {
   reason?: string;
   isDir?: boolean; // if not provided, inferred by fs.stat
 }): Promise<boolean> {
-  const inferredIsDir = await fs
-    .stat(opts.targetPath)
-    .then((st) => st.isDirectory())
-    .catch(() => Boolean(opts.isDir));
   const ok = await ui.confirm(
     `${opts.reason ? opts.reason + "\n\n" : ""}${opts.targetPath}\n\n${t("fileOps.deleteConfirm")}`,
     false,
