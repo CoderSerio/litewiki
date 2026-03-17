@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-03-17T10:26:27.013Z",
+  "nodeVersion": "v22.22.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "rushFsVersion": "0.1.0",
+  "tests": {
+    "readdir": {
+      "node": {
+        "duration": {
+          "avg": 4.732874800000007,
+          "min": 4.3757090000000005,
+          "max": 5.124666000000019
+        },
+        "memory": {
+          "deltaAvg": -110056,
+          "deltaMax": 1167088,
+          "peakAvg": 5898947.2,
+          "peakMax": 6577536
+        },
+        "runs": 5
+      },
+      "rush": {
+        "duration": {
+          "avg": 5.501266800000002,
+          "min": 5.125833,
+          "max": 5.782292000000012
+        },
+        "memory": {
+          "deltaAvg": 337971.2,
+          "deltaMax": 1030648,
+          "peakAvg": 6237888,
+          "peakMax": 6911808
+        },
+        "runs": 5
+      }
+    },
+    "readFile": {
+      "node": {
+        "duration": {
+          "avg": 1.4376670000000047,
+          "min": 1.0592919999999992,
+          "max": 2.0927499999999952
+        },
+        "memory": {
+          "deltaAvg": 34838.4,
+          "deltaMax": 1052904,
+          "peakAvg": 7637966.4,
+          "peakMax": 8646688
+        },
+        "runs": 5
+      },
+      "rush": {
+        "duration": {
+          "avg": 0.49054179999999975,
+          "min": 0.44583299999999326,
+          "max": 0.531374999999997
+        },
+        "memory": {
+          "deltaAvg": 177460.8,
+          "deltaMax": 178008,
+          "peakAvg": 7816075.2,
+          "peakMax": 8824968
+        },
+        "runs": 5
+      }
+    }
+  }
+}
