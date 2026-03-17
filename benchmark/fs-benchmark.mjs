@@ -181,21 +181,13 @@ async function benchmarkReaddirRecursive() {
     return results;
   }
 
-  // Rush-FS
+  // Rush-FS - use recursive mode (single NAPI call, internal parallelism)
   async function rushReaddirRecursive(dir) {
-    const entries = await rushFs.readdir(dir, { withFileTypes: true });
-    const results = [];
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        results.push(...(await rushReaddirRecursive(fullPath)));
-      } else {
-        results.push(entry.name);
-      }
-    }
-
-    return results;
+    const entries = await rushFs.readdir(dir, {
+      withFileTypes: true,
+      recursive: true,
+    });
+    return entries.map((e) => e.name);
   }
 
   // 运行测试 (各 5 次)
