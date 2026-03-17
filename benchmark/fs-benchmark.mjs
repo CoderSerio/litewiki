@@ -8,7 +8,13 @@
  * 3. 混合操作（真实工作负载）
  */
 
-import { mkdir, writeFile, rm, readdir as nodeReaddir } from "node:fs/promises";
+import {
+  mkdir,
+  writeFile,
+  rm,
+  readdir as nodeReaddir,
+  readFile as nodeReadFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { statSync } from "node:fs";
@@ -231,13 +237,13 @@ async function benchmarkReaddirRecursive() {
     `   ├─────────────┼──────────────┼──────────────┼──────────────┤`,
   );
   console.log(
-    `   │ 平均时间    │ ${formatDuration(nodeStats.duration.avg).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.avg).padEnd(12) : "N/A"} │ ${rushStats ? ((nodeStats.duration.avg / rushStats.duration.avg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
+    `   │ 平均时间    │ ${formatDuration(nodeStats.duration.avg).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.avg).padEnd(12) : "N/A"} │ ${rushStats && rushStats.duration.avg > 0 ? ((nodeStats.duration.avg / rushStats.duration.avg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
   );
   console.log(
-    `   │ 最快时间    │ ${formatDuration(nodeStats.duration.min).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.min).padEnd(12) : "N/A"} │ ${rushStats ? ((nodeStats.duration.min / rushStats.duration.min).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
+    `   │ 最快时间    │ ${formatDuration(nodeStats.duration.min).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.min).padEnd(12) : "N/A"} │ ${rushStats && rushStats.duration.min > 0 ? ((nodeStats.duration.min / rushStats.duration.min).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
   );
   console.log(
-    `   │ 内存增量    │ ${formatMemory(nodeStats.memory.deltaAvg).padEnd(12)} │ ${rushStats ? formatMemory(rushStats.memory.deltaAvg).padEnd(12) : "N/A"} │ ${rushStats ? ((nodeStats.memory.deltaAvg / rushStats.memory.deltaAvg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
+    `   │ 内存峰值    │ ${formatMemory(nodeStats.memory.peakAvg).padEnd(12)} │ ${rushStats ? formatMemory(rushStats.memory.peakAvg).padEnd(12) : "N/A"} │ ${rushStats && rushStats.memory.peakAvg > 0 ? ((nodeStats.memory.peakAvg / rushStats.memory.peakAvg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
   );
   console.log(
     `   └─────────────┴──────────────┴──────────────┴──────────────┘`,
@@ -275,17 +281,10 @@ async function benchmarkReadFile() {
   console.log(`   运行 ${runs} 次...`);
 
   for (let i = 0; i < runs; i++) {
-    // Node.js
+    // Node.js - fair comparison: only readFile, no touch, no dynamic import
     let memBefore = getMemoryUsage();
     let start = performance.now();
-    await Promise.all(
-      testFiles.map((f) => writeFile(f, "", { flag: "r+" }).catch(() => {})),
-    ); // touch
-    await Promise.all(
-      testFiles.map((f) =>
-        import("node:fs/promises").then((fs) => fs.readFile(f, "utf-8")),
-      ),
-    );
+    await Promise.all(testFiles.map((f) => nodeReadFile(f, "utf-8")));
     let end = performance.now();
     let memAfter = getMemoryUsage();
     nodeResult.addRun(end - start, memBefore, memAfter);
@@ -315,10 +314,10 @@ async function benchmarkReadFile() {
     `   ├─────────────┼──────────────┼──────────────┼──────────────┤`,
   );
   console.log(
-    `   │ 平均时间    │ ${formatDuration(nodeStats.duration.avg).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.avg).padEnd(12) : "N/A"} │ ${rushStats ? ((nodeStats.duration.avg / rushStats.duration.avg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
+    `   │ 平均时间    │ ${formatDuration(nodeStats.duration.avg).padEnd(12)} │ ${rushStats ? formatDuration(rushStats.duration.avg).padEnd(12) : "N/A"} │ ${rushStats && rushStats.duration.avg > 0 ? ((nodeStats.duration.avg / rushStats.duration.avg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
   );
   console.log(
-    `   │ 内存增量    │ ${formatMemory(nodeStats.memory.deltaAvg).padEnd(12)} │ ${rushStats ? formatMemory(rushStats.memory.deltaAvg).padEnd(12) : "N/A"} │ ${rushStats ? ((nodeStats.memory.deltaAvg / rushStats.memory.deltaAvg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
+    `   │ 内存峰值    │ ${formatMemory(nodeStats.memory.peakAvg).padEnd(12)} │ ${rushStats ? formatMemory(rushStats.memory.peakAvg).padEnd(12) : "N/A"} │ ${rushStats && rushStats.memory.peakAvg > 0 ? ((nodeStats.memory.peakAvg / rushStats.memory.peakAvg).toFixed(2) + "x").padEnd(12) : "N/A"} │`,
   );
   console.log(
     `   └─────────────┴──────────────┴──────────────┴──────────────┘`,
