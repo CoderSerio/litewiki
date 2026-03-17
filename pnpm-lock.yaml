@@ -14,6 +14,9 @@ importers:
       '@clack/prompts':
         specifier: ^0.11.0
         version: 0.11.0
+      '@rush-fs/core':
+        specifier: ^0.1.0
+        version: 0.1.0
       ai:
         specifier: ^6.0.6
         version: 6.0.6(zod@4.3.4)
@@ -503,6 +506,34 @@ packages:
     resolution: {integrity: sha512-hYT5d3YNdSh3mbCU1gwQyPgQd3T2ne0A3KG8KSBdav5TiBg6eInVmV+TeR5uHufiIgSFg0XsOWGW5/RhNcSvPg==}
     cpu: [x64]
     os: [win32]
+
+  '@rush-fs/core-darwin-arm64@0.1.0':
+    resolution: {integrity: sha512-P386sgBFn2tWonyR5X2bGu7c6pxzAheAFwm0UrdwFmPebmqu9IsbHAbZlT4bl3HA8irBPE5S+i18OWRN9ksw9w==}
+    engines: {node: '>= 18.0.0'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@rush-fs/core-darwin-x64@0.1.0':
+    resolution: {integrity: sha512-MuP7BmJS4d/SeKz/TRWdFJNTQed+GbtqGXSKmkcormXz8DN0/RkIU3iccmGBfbDveagNg1dnbkbQlnXCq450XA==}
+    engines: {node: '>= 18.0.0'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@rush-fs/core-linux-x64-gnu@0.1.0':
+    resolution: {integrity: sha512-3h9edZsEGX4Z1thaZrpmmkWNiev9g4MQVCdSIF2cAhiKOh/LRgOOSaRN84WbxNs/ahGZ2RwSb4ltDsM92vBRaQ==}
+    engines: {node: '>= 18.0.0'}
+    cpu: [x64]
+    os: [linux]
+
+  '@rush-fs/core-win32-x64-msvc@0.1.0':
+    resolution: {integrity: sha512-gr4IkKc8l2IP7TgAoGfGcIIjT0wBjAn2K63zaW+py8KozyGY5wkO8vsvOLn9kF1zWPFUXVjg5AgkFBXafwE4TQ==}
+    engines: {node: '>= 18.0.0'}
+    cpu: [x64]
+    os: [win32]
+
+  '@rush-fs/core@0.1.0':
+    resolution: {integrity: sha512-jHvPYr2J2XZxFJb3DJ+vGwCnT7KNo48/1a/8XpM+F/1QAqNOgyuT1Cy1QTS4eeRjP0dp6ti2tiAfkKt19NFGIg==}
+    engines: {node: '>= 18.0.0'}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -1576,6 +1607,25 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.54.0':
     optional: true
+
+  '@rush-fs/core-darwin-arm64@0.1.0':
+    optional: true
+
+  '@rush-fs/core-darwin-x64@0.1.0':
+    optional: true
+
+  '@rush-fs/core-linux-x64-gnu@0.1.0':
+    optional: true
+
+  '@rush-fs/core-win32-x64-msvc@0.1.0':
+    optional: true
+
+  '@rush-fs/core@0.1.0':
+    optionalDependencies:
+      '@rush-fs/core-darwin-arm64': 0.1.0
+      '@rush-fs/core-darwin-x64': 0.1.0
+      '@rush-fs/core-linux-x64-gnu': 0.1.0
+      '@rush-fs/core-win32-x64-msvc': 0.1.0
 
   '@sec-ant/readable-stream@0.4.1': {}
 

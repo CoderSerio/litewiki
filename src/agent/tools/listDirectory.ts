@@ -1,6 +1,6 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { readdir } from "../../utils/fs.js";
 import type { ToolResult } from "../types.js";
 
 const listDirectorySchema = {
@@ -50,7 +50,9 @@ const handler = async (props: {
   }
 
   try {
-    const items = await fs.readdir(targetPath, { withFileTypes: true });
+    const items = (await readdir(targetPath, {
+      withFileTypes: true,
+    })) as import("../../utils/fs.js").Dirent[];
     const data = items.map((item) => ({
       name: item.name,
       type: item.isDirectory() ? "directory" : "file",

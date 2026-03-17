@@ -1,8 +1,14 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { createConfigStore } from "../config/store.js";
-import { ensureDir } from "../utils/fs.js";
+import {
+  ensureDir,
+  readdir,
+  readFile,
+  writeFile,
+  unlink,
+  stat,
+} from "../utils/fs.js";
 
 export const ConfigSchema = z.object({
   id: z.string().min(1),
@@ -21,9 +27,9 @@ export function configFilePath(configDir: string, id: string) {
 }
 
 export async function listConfigs(configDir: string): Promise<ConfigItem[]> {
-  const ents = await fs
-    .readdir(configDir, { withFileTypes: true })
-    .catch(() => []);
+  const ents = (await readdir(configDir, { withFileTypes: true }).catch(
+    () => [],
+  )) as import("../utils/fs.js").Dirent[];
   const results: ConfigItem[] = [];
   for (const it of ents) {
     if (!it.isFile() || !it.name.endsWith(".json")) continue;
@@ -31,7 +37,7 @@ export async function listConfigs(configDir: string): Promise<ConfigItem[]> {
     if (it.name === "config.json") continue;
     const fp = path.join(configDir, it.name);
     try {
-      const raw = JSON.parse(await fs.readFile(fp, "utf-8"));
+      const raw = JSON.parse((await readFile(fp, "utf-8")) as string);
       const id = String(raw?.id ?? path.basename(it.name, ".json"));
       const parsed = ConfigSchema.parse({ ...raw, id });
       results.push({ ...parsed, filePath: fp });
@@ -50,7 +56,7 @@ export async function loadConfigById(
 ): Promise<ConfigItem | null> {
   const fp = configFilePath(configDir, id);
   try {
-    const raw = JSON.parse(await fs.readFile(fp, "utf-8"));
+    const raw = JSON.parse((await readFile(fp, "utf-8")) as string);
     const parsed = ConfigSchema.parse({ ...raw, id });
     return { ...parsed, filePath: fp };
   } catch {
@@ -65,13 +71,15 @@ export async function saveConfig(
   await ensureDir(configDir);
   const data = ConfigSchema.parse(cfg);
   const fp = configFilePath(configDir, data.id);
-  await fs.writeFile(fp, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  await writeFile(fp, JSON.stringify(data, null, 2) + "\n", {
+    encoding: "utf-8",
+  });
   return { ...data, filePath: fp } as ConfigItem;
 }
 
 export async function deleteConfig(configDir: string, id: string) {
   const fp = configFilePath(configDir, id);
-  await fs.unlink(fp).catch(() => {});
+  await unlink(fp).catch(() => {});
 }
 
 export function getActiveConfigId(): string | undefined {
@@ -90,14 +98,13 @@ export function setActiveConfigId(id?: string) {
 export async function migrateLegacyConfigIfNeeded(configDir: string) {
   await ensureDir(configDir);
   const legacy = path.join(configDir, "config.json");
-  const exists = await fs
-    .stat(legacy)
+  const exists = await stat(legacy)
     .then(() => true)
     .catch(() => false);
   const hasAny = (await listConfigs(configDir)).length > 0;
   if (!exists || hasAny) return;
   try {
-    const raw = JSON.parse(await fs.readFile(legacy, "utf-8"));
+    const raw = JSON.parse((await readFile(legacy, "utf-8")) as string);
     const id = "default";
     const cfg = ConfigSchema.parse({
       id,

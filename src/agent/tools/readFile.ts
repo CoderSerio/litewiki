@@ -1,7 +1,7 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import { IsPathSafe } from "../../utils/agent.js";
+import { readFile } from "../../utils/fs.js";
 import type { ToolResult } from "../types.js";
 
 const readFileSchema = {
@@ -45,7 +45,7 @@ const handler = async (props: {
   }
 
   try {
-    const content = await fs.readFile(targetPath, "utf-8");
+    const content = (await readFile(targetPath, "utf-8")) as string;
     const clipped =
       content.length > 5000
         ? content.slice(0, 5000) + "\n...(内容已截断)"
